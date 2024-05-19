@@ -2,7 +2,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import sequential, GATConv, GraphNorm, VGAE, GCNConv, InnerProductDecoder, TransformerConv, GAE,LayerNorm
+from torch_geometric.nn import sequential, GATConv, GraphNorm, VGAE, GCNConv, InnerProductDecoder, TransformerConv, GAE,LayerNorm, SAGEConv
+from torch_geometric.nn.conv import transformer_conv
 from torch_geometric.utils import negative_sampling
 from sklearn.metrics import average_precision_score, roc_auc_score
 from torch_geometric.utils import add_self_loops, remove_self_loops, softmax
@@ -13,23 +14,6 @@ import numpy as np
 import pandas as pd
 EPS = 1e-15
 MAX_LOGSTD = 10
-
-
-
-def discret_tensor(tensor, num_classes=10):
-
-    min_vals, _ = torch.min(tensor, dim=1, keepdim=True)#.to(tensor.device)
-    max_vals, _ = torch.max(tensor, dim=1, keepdim=True)#.to(tensor.device)
-
-    # Generate equally spaced intervals for each row
-    linspace = torch.linspace(0, 1, num_classes + 1).view(1, -1).to(tensor.device)
-    intervals = min_vals + (max_vals - min_vals) * linspace
-
-    # Use searchsorted to assign each element to a class
-    discretized_tensor = torch.searchsorted(intervals, tensor) - 1
-    discretized_tensor = torch.clamp(discretized_tensor, 0, num_classes - 1)
-    return discretized_tensor.float().to(tensor.device)
-
 
 class FatureDecoder(torch.nn.Module):
     def __init__(self, feature_dim, embd_dim,inter_dim , transpose_feature_dim, transpose_inter_dim, ge_dim, drop_p = 0.0, cd=True):
@@ -60,55 +44,28 @@ class FatureDecoder(torch.nn.Module):
                                           nn.ReLU())
         else :
             self.decoder = nn.Sequential(nn.Linear(embd_dim, inter_dim),
-                                            #nn.BatchNorm1d(inter_dim),
+                                           # nn.BatchNorm1d(inter_dim),
                                             nn.Dropout(drop_p),
                                             nn.ReLU(),
+                                           # nn.Linear(inter_dim, inter_dim),
+                                           # nn.BatchNorm1d(inter_dim),
+                                            #nn.Dropout(drop_p),
+                                            #nn.ReLU(),
                                             nn.Linear(inter_dim, inter_dim),
                                            # nn.BatchNorm1d(inter_dim),
                                             nn.Dropout(drop_p),
                                             nn.ReLU(),
-                                            #nn.Linear(inter_dim, inter_dim),
-                                           # nn.BatchNorm1d(inter_dim),
-                                            #nn.Dropout(drop_p),
-                                            #nn.ReLU(),
                                             nn.Linear(inter_dim, feature_dim),
                                            # nn.BatchNorm1d(inter_dim),
-                                            nn.Dropout(drop_p),
-                                            nn.ReLU())
+                                            nn.Dropout(drop_p))
+              
     def forward(self, z, ge, sigmoid =True):
         out = self.decoder(z)
         if not self.cd:
           return out 
         out = self.transposer(out.T)
         return self.combine_decoder(torch.concat([out, ge],axis=1)).T
-
-
   
-class FatureDecoder_test(torch.nn.Module):
-    def __init__(self,embd_dim, inter_dim=150, drop_p = 0.2, cd=True):
-        super(FatureDecoder_test, self).__init__()
-        self.embd_dim = embd_dim
-        self.inter_dim = inter_dim
-        self.cd = cd
-        if cd:
-            self.decoder = nn.Sequential(nn.Linear(embd_dim, inter_dim),
-                                            #nn.BatchNorm1d(inter_dim),
-                                            nn.Dropout(drop_p),
-                                            nn.ReLU(),
-                                            nn.Linear(inter_dim, inter_dim),
-                                            # nn.BatchNorm1d(inter_dim),
-                                            nn.Dropout(drop_p),
-                                            nn.ReLU(),
-                                            nn.Linear(inter_dim, inter_dim//2),
-                                            # nn.BatchNorm1d(inter_dim//2),
-                                            nn.Dropout(drop_p))
-                                            #nn.ReLU())
-                          
-                          
-    def forward(self, z, sigmoid =True):
-        out = self.decoder(z)
-        return out
-    
 class MutaelEncoder(torch.nn.Module):
   def __init__(self,col_dim, row_dim,num_layers=4, drop_p = 0.25, add_linear_rows = False, add_linear_cols = False):
     super(MutaelEncoder, self).__init__()
@@ -126,7 +83,7 @@ class MutaelEncoder(torch.nn.Module):
 
     self.rows_layers = nn.ModuleList([
       sequential.Sequential('x,edge_index', [
-                                  (GCNConv(self.row_dim, self.row_dim), 'x, edge_index -> x1'),
+                                  (SAGEConv(self.row_dim, self.row_dim), 'x, edge_index -> x1'),
                                   (nn.Dropout(drop_p,inplace=False), 'x1-> x2'),
                                   nn.LeakyReLU(inplace=True),
                                  # (LayerNorm(self.row_dim),'x2-> x3')
@@ -134,7 +91,7 @@ class MutaelEncoder(torch.nn.Module):
     
     self.cols_layers = nn.ModuleList([
       sequential.Sequential('x,edge_index', [
-                                  (GCNConv(self.col_dim, self.col_dim), 'x, edge_index -> x1'),
+                                  (SAGEConv(self.col_dim, self.col_dim), 'x, edge_index -> x1'),
                                   nn.LeakyReLU(inplace=True),
                                   (nn.Dropout(drop_p,inplace=False), 'x1-> x2'),
                                 ]) for _ in range(num_layers)])
@@ -155,7 +112,7 @@ class MutaelEncoder(torch.nn.Module):
       return embbded
 
 class GATReducerLayer(GATConv):
-  def __init__(self, in_channels, out_channels, heads=1, dropout=0 , add_self_loops=True,scale_param =1.5,  **kwargs):
+  def __init__(self, in_channels, out_channels, heads=1, dropout=0 , add_self_loops=True,scale_param =2,  **kwargs):
      super().__init__(in_channels, out_channels, heads, dropout, add_self_loops, **kwargs)
      self.treshold_alpha = None
      self.scale_param = scale_param
@@ -175,9 +132,9 @@ class GATReducerLayer(GATConv):
             alpha_edge = (edge_attr * self.att_edge).sum(dim=-1)
             alpha = alpha + alpha_edge
 
-        alpha = F.leaky_relu(alpha, self.negative_slope)
-        #alpha = softmax(alpha, index, ptr, size_i)
-       # alpha = F.sigmoid(alpha)
+        #alpha = F.leaky_relu(alpha, self.negative_slope)
+        alpha = softmax(alpha, index, ptr, size_i)
+        alpha = F.sigmoid(alpha)
         if not self.scale_param is None:
         #  alpha = alpha / ((1/self.scale_param) * alpha.std())
           alpha = F.sigmoid(alpha)
@@ -188,7 +145,7 @@ class GATReducerLayer(GATConv):
         return alpha
 
 class TransformerConvReducrLayer(TransformerConv):
-  def __init__(self, in_channels, out_channels, heads=1, dropout=0 , add_self_loops=True,scale_param =1.5, **kwargs):
+  def __init__(self, in_channels, out_channels, heads=1, dropout=0 , add_self_loops=True,scale_param = 2, **kwargs):
      super().__init__(in_channels, out_channels, heads, dropout, add_self_loops, **kwargs)
      self.treshold_alpha = None
      self.scale_param = scale_param
@@ -206,8 +163,10 @@ class TransformerConvReducrLayer(TransformerConv):
         alpha = (query_i * key_j).sum(dim=-1) / math.sqrt(self.out_channels)
         #print(alpha)
         if not self.scale_param is None:
+          alpha = alpha - alpha.mean()
           alpha = alpha / ((1/self.scale_param) * alpha.std())
           alpha = F.sigmoid(alpha)
+         # alpha = F.leaky_relu(alpha)
         else:
           alpha = softmax(alpha, index, ptr, size_i)
         #self.treshold_alpha = alpha.clone().detach()
@@ -227,32 +186,35 @@ class TransformerConvReducrLayer(TransformerConv):
         return out
 
 class DimEncoder(torch.nn.Module):
-      def __init__(self,feature_dim, inter_dim, embd_dim,drop_p = 0.0, scale_param =1.5):
+      def __init__(self,feature_dim, inter_dim, embd_dim,reducer=False,drop_p = 0.2, scale_param=3):
         super(DimEncoder, self).__init__()
         self.feature_dim = feature_dim
         self.embd_dim = embd_dim
         self.inter_dim = inter_dim
+        self.reducer = reducer
 
         self.encoder = sequential.Sequential('x, edge_index', [
-                                   # (GraphNorm(self.feature_dim),'x->x'),
+                                  # (GraphNorm(self.feature_dim),'x->x'),
                                     (GCNConv(self.feature_dim, self.inter_dim), 'x, edge_index -> x1'),
                                     nn.LeakyReLU(inplace=True),
                                     (nn.Dropout(drop_p,inplace=False), 'x1-> x2')
                                   ])
-        self.atten_layer = TransformerConvReducrLayer(self.inter_dim, self.embd_dim,dropout= drop_p,add_self_loops = False,heads=1, scale_param=scale_param)
+        print(scale_param) 
+        if self.reducer:                
+          self.atten_layer = TransformerConvReducrLayer(self.inter_dim, self.embd_dim,dropout= drop_p,add_self_loops = False,heads=1, scale_param=scale_param)
+        else:
+           self.atten_layer = TransformerConv(self.inter_dim, self.embd_dim,dropout=drop_p)
+           
         self.atten_map = None
         self.atten_weights = None
         self.plot_count = 0
       
 
-      def reduce_network(self, threshold = 0, min_connect=5):
+      def reduce_network(self, threshold = 0.2, min_connect=5):
         self.plot_count += 1
         graph = self.atten_weights.cpu().detach().numpy()
         threshold_bound = np.percentile(graph, 10)
         threshold = min(threshold,threshold_bound)
-       # if self.plot_count % 30 == 0:
-       #   sns.distplot(graph)
-      #    plt.show()
         df = pd.DataFrame({"v1": self.atten_map[0].cpu().detach().numpy(), "v2": self.atten_map[1].cpu().detach().numpy(), "atten": graph.squeeze()})
         saved_edges = df.groupby('v1')['atten'].nlargest(min_connect).index.values
         saved_edges = [v2 for _, v2 in saved_edges]
@@ -263,18 +225,19 @@ class DimEncoder(torch.nn.Module):
         self.atten_weights = None
         return atten_map, df 
 
-      def forward(self, x, edge_index):
+      def forward(self, x, edge_index, infrance=False):
         embbded = x.clone()
         embbded = self.encoder(embbded,edge_index)
         embbded, atten_map = self.atten_layer(embbded, edge_index, return_attention_weights=True)
-        if self.atten_map is None:
-          self.atten_map = atten_map[0].detach()
-          self.atten_weights = atten_map[1].detach()
-        else:
-          self.atten_map = torch.concat([self.atten_map.T, atten_map[0].detach().T]).T
-          self.atten_weights = torch.concat([self.atten_weights, atten_map[1].detach()])
+        if self.reducer and not infrance :
+          if self.atten_map is None:
+            self.atten_map = atten_map[0].detach()
+            self.atten_weights = atten_map[1].detach()
+          else:
+            self.atten_map = torch.concat([self.atten_map.T, atten_map[0].detach().T]).T
+            self.atten_weights = torch.concat([self.atten_weights, atten_map[1].detach()])
 
-        return  embbded
+        return  embbded   
 
 class DimVariationalEmcoder(torch.nn.Module):
       def __init__(self,feature_dim, inter_dim, embd_dim,drop_p = 0.0):
@@ -291,8 +254,8 @@ class DimVariationalEmcoder(torch.nn.Module):
                                     nn.LeakyReLU(inplace=True),
                                     (nn.Dropout(drop_p,inplace=False), 'x1-> x2')
                                   ])
-        self.mu = GCNConv(self.inter_dim, self.embd_dim,dropout= drop_p,add_self_loops = True)
-        self.logstd = GCNConv(self.inter_dim, self.embd_dim,dropout= drop_p, add_self_loops = True)
+        self.mu = TransformerConv(self.inter_dim, self.embd_dim,dropout= drop_p,add_self_loops = True)
+        self.logstd = TransformerConv(self.inter_dim, self.embd_dim,dropout= drop_p, add_self_loops = True)
 
   
       def forward(self, x, edge_index):
@@ -308,11 +271,11 @@ class DimVariationalEmcoder(torch.nn.Module):
         logstd = self.__logstd__ if logstd is None else logstd
         return self.__mu__ + torch.randn_like(self.__logstd__) * torch.exp(self.__logstd__)
 
-class BiGraphAutoEncoder(torch.nn.Module):
+class scNET(torch.nn.Module):
   def __init__(self,col_dim, row_dim,inter_row_dim, embd_row_dim, inter_col_dim,embd_col_dim,
                 lambda_rows = 1, lambda_cols = 1, num_layers=2, drop_p = 0.25, add_linear_row = True,vae_flag=False, add_linear_col = False,cd=False):
 
-    super(BiGraphAutoEncoder, self).__init__()
+    super(scNET, self).__init__()
     self.col_dim = col_dim
     self.row_dim = row_dim
     self.inter_row_dim = inter_row_dim
@@ -324,22 +287,21 @@ class BiGraphAutoEncoder(torch.nn.Module):
     self.vae_flag = vae_flag
     self.cd = cd
 
+
     self.encoder = MutaelEncoder(col_dim, row_dim,num_layers, drop_p, add_linear_row, add_linear_col)
+    self.rows_encoder =  DimEncoder(row_dim, inter_row_dim, embd_row_dim,drop_p = drop_p, scale_param=None, reducer=False)
 
     if vae_flag:
-        self.rows_encoder =  DimVariationalEmcoder(row_dim, inter_row_dim, embd_row_dim,drop_p)
+        self.cols_encoder =  DimVariationalEmcoder(col_dim, inter_col_dim, embd_col_dim,drop_p)
     else:
-        self.rows_encoder =  DimEncoder(row_dim, inter_row_dim, embd_row_dim,drop_p, scale_param=None)
+        self.cols_encoder =  DimEncoder(col_dim, inter_col_dim, embd_col_dim,drop_p=drop_p, reducer=True)
 
-    self.cols_encoder =  DimEncoder(col_dim, inter_col_dim, embd_col_dim,drop_p)
+
+    #self.cols_encoder =  DimEncoder(col_dim, inter_col_dim, embd_col_dim,drop_p=drop_p, reducer=True)
     self.feature_decodr = FatureDecoder(col_dim, embd_col_dim, inter_col_dim, row_dim, inter_row_dim, embd_row_dim, drop_p = 0.2,cd=cd)
     self.ipd = InnerProductDecoder()
     self.feature_critarion = nn.MSELoss(reduction ='mean')
-    #self.feature_critarion = nn.CrossEntropyLoss(reduction ='mean')
 
-    self.row_decoder = FatureDecoder_test(embd_row_dim) 
-    self.col_decoder = FatureDecoder_test(embd_col_dim) 
-  
   def recon_loss(self, z, pos_edge_index, neg_edge_index = None) :
       
       pos_loss = -torch.log(
@@ -377,39 +339,36 @@ class BiGraphAutoEncoder(torch.nn.Module):
         return roc_auc_score(y, pred), average_precision_score(y, pred)
     
 
-  def calculate_loss(self, x ,knn_edge_index, ppi_edge_index,highly_variable_index):
+  def calculate_loss(self, x ,knn_edge_index, ppi_edge_index, highly_variable_index):
     embbed = self.encoder(x, knn_edge_index, ppi_edge_index)
-    embbed_cols = self.cols_encoder(embbed.T, knn_edge_index)
-   # out_features = self.feature_decodr(embbed_cols)
-   # out_features = (x[highly_variable_index.values].T != 0 ) * out_features.T[highly_variable_index.values].T
-   # col_loss = self.feature_critarion(x[highly_variable_index.values].T, out_features)
-
+    embbed_rows = self.rows_encoder(embbed, ppi_edge_index)
+    row_loss = self.recon_loss(embbed_rows, ppi_edge_index)
+ 
     if self.vae_flag:
-      mu, logstd = self.rows_encoder(embbed, ppi_edge_index)
-      embbed_rows = self.rows_encoder.encode(mu,logstd)
-      row_loss = self.recon_loss(embbed_rows, ppi_edge_index)
-      row_loss += (1 / x.shape[0]) * self.kl_loss(mu, logstd)
-    else:
-      embbed_rows = self.rows_encoder(embbed, ppi_edge_index)
-      row_loss = self.recon_loss(embbed_rows, ppi_edge_index)
-      # if self.cd:
-      #     rows = self.row_decoder(embbed_rows)
-      #     cols = self.row_decoder(embbed_cols)
-      #     out_features = F.relu(cols @ rows.T)
-          
-      # else:
-      
-      #out_features = self.feature_decodr(embbed_cols,embbed_rows)
-      #out_features = out_features.reshape(out_features.shape[0],-1,10)
-      #out_features = F.softmax(out_features,dim=-1)
-      #out_features = out_features[:,highly_variable_index,:]
-      
-      
+      mu, logstd = self.cols_encoder(embbed.T, knn_edge_index)
+      embbed_cols = self.cols_encoder.encode(mu,logstd)
       out_features = self.feature_decodr(embbed_cols,embbed_rows)
       out_features =  out_features.T[highly_variable_index.values].T
       out_features = (out_features - (out_features.mean(axis=0)))/ (out_features.std(axis=0)+ EPS)
       col_loss = self.feature_critarion(x[highly_variable_index.values].T, out_features)
-
+      col_loss +=  (5 / x.shape[1]) *  self.kl_loss(mu, logstd)
+    else:
+      #embbed_cols = self.cols_encoder(embbed.T, knn_edge_index)
+      #out_features = self.feature_decodr(embbed_cols,embbed_rows)
+      #out_features =  out_features.T[highly_variable_index.values].T
+      #out_features = (out_features - (out_features.mean(axis=0)))/ (out_features.std(axis=0)+ EPS)
+      #col_loss = self.feature_critarion(x[highly_variable_index.values].T, out_features)
+      # if self.cd:
+      embbed_cols = self.cols_encoder(embbed.T, knn_edge_index)
+      out_features = self.feature_decodr(embbed_cols,embbed_rows)
+      out_features = (out_features - (out_features.mean(axis=0)))/ (out_features.std(axis=0)+ EPS)
+      #col_loss = 0.1*self.recon_loss(out_features.T, target_edge_index)
+    #  out_features = out_features * (~zero_mask).T
+    #  x = x* (~zero_mask)
+      out_features =  out_features.T[highly_variable_index.values].T
+      #out_features = (out_features - (out_features.mean(axis=0)))/ (out_features.std(axis=0)+ EPS)
+      col_loss = self.feature_critarion(x[highly_variable_index.values].T, out_features)
+   
 
     return self.lambda_rows * row_loss + self.lambda_cols * col_loss, row_loss, col_loss
   
@@ -417,28 +376,14 @@ class BiGraphAutoEncoder(torch.nn.Module):
   def forward(self, x, knn_edge_index, ppi_edge_index):
     embbed = self.encoder(x, knn_edge_index, ppi_edge_index)
     embbed_rows = self.rows_encoder(embbed, ppi_edge_index)
-    embbed_cols = self.cols_encoder(embbed.T, knn_edge_index)
-    out_netowrk = self.ipd(embbed_rows, ppi_edge_index)
-    out_features = self.feature_decodr(embbed_cols,embbed_rows)
-    return out_netowrk, out_features
 
+    if self.vae_flag:
+      mu, logstd = self.cols_encoder(embbed.T, knn_edge_index)
+      embbed_cols = self.cols_encoder.encode(mu,logstd)
+    else:
+       embbed_cols = self.cols_encoder(embbed.T, knn_edge_index, infrance=True)
+
+    #out_netowrk = self.ipd(embbed_rows, ppi_edge_index)
+    #out_features = self.feature_decodr(embbed_cols,embbed_rows)
+    return embbed_rows, embbed_cols
   
-  # class ZeroMaskingMSELoss(nn.Module):
-  #   def __init__(self):
-  #     super().__init__()
-  #     self.loss_function = nn.SmoothL1Loss(reduction = "sum")
-  #     self.loss_function = nn.MSELoss(reduction ='sum')
-    
-  #   def forward(self, target, output, length, epsilon=0.00001):
-  #       total_loss = epsilon
-  #       batch_size = target.shape[0]
-  #       counter = 0
-  #       for index in range(batch_size):
-  #           capture_indexs = (
-  #                           target[index, :length[index]]
-  #                           dim=-1) != self.feature_dim)
-  #           if capture_indexs.sum() > 0:
-  #               total_loss += self.loss_function(output[index, :length[index]][capture_indexs].double(),
-  #                                                target[index, :length[index]][capture_indexs].double())
-  #               counter += 1
-  #       return total_loss / counter
