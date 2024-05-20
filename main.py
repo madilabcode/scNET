@@ -24,7 +24,6 @@ from KNNDataset import KNNDataset, CellDataset
 from torch.utils.data import DataLoader, random_split
 import warnings
 import matplotlib.pyplot as plt
-from pandarallel import pandarallel
 from sklearn.metrics import mutual_info_score as mis
 import gc 
 import umap.plot
