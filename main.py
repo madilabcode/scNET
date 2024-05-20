@@ -418,7 +418,7 @@ def main(path = "./Data/cell_line.h5ad",pre_processing_flag = True ,biogrid_flag
         writer = SummaryWriter(log_dir = f"./runs")  
         data = Data(x,ppi_edge_index)
         data = train_test_split_edges(data,test_ratio=0.2, val_ratio=0)
-        model = train(data, loader, target_edge_index, highly_variable_index, number_of_batches=number_of_batches, max_epoch=500, 
+        model = train(data, loader, target_edge_index, highly_variable_index, number_of_batches=number_of_batches, max_epoch=50, 
                         rduce_interavel=30,model_name=model_name, train_all= True, cell_flag=split_cells)
         writer.flush()
         save_model(r"./Models/BiEncdoer_" + model_name + ".pt", model)
