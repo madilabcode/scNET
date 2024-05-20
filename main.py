@@ -137,7 +137,7 @@ def intersect_edges(edge_index1, edge_index2):
 
 
 def train(data, loader,target_edges, highly_variable_index,number_of_batches=5 ,
-          max_epoch = 500, rduce_interavel = 50,writer = None,model_name="", train_all = False, cell_flag=False):
+          max_epoch = 330, rduce_interavel = 50,writer = None,model_name="", train_all = False, cell_flag=False):
     x_full = data.x.clone()
     if cell_flag:
       model = scNET(x_full.shape[0], x_full.shape[1]//number_of_batches,
@@ -372,7 +372,7 @@ def nx_to_pyg_edge_index(G, mapping=None):
 
 def main(path = "./Data/cell_line.h5ad",pre_processing_flag = True ,biogrid_flag = False,
           train_all = True, human_flag=False,number_of_batches=5, random_noise=False, 
-          split_cells = False, n_neighbors=50,model_name=""):
+          split_cells = False, n_neighbors=50,max_epoch=330,model_name=""):
     if pre_processing_flag:
        obj = sc.read(path)
        obj = pre_processing(obj)
@@ -418,11 +418,11 @@ def main(path = "./Data/cell_line.h5ad",pre_processing_flag = True ,biogrid_flag
         writer = SummaryWriter(log_dir = f"./runs")  
         data = Data(x,ppi_edge_index)
         data = train_test_split_edges(data,test_ratio=0.2, val_ratio=0)
-        model = train(data, loader, target_edge_index, highly_variable_index, number_of_batches=number_of_batches, max_epoch=50, 
+        model = train(data, loader, target_edge_index, highly_variable_index, number_of_batches=number_of_batches, max_epoch=max_epoch, 
                         rduce_interavel=30,model_name=model_name, train_all= True, cell_flag=split_cells)
         writer.flush()
         save_model(r"./Models/BiEncdoer_" + model_name + ".pt", model)
 
 
 if __name__ == "__main__":
-    main(path = r"./Data/viti.h5ad", pre_processing_flag = False,human_flag=True, train_all = True,random_noise=False)
+    main(path = r"./Data/viti.h5ad", pre_processing_flag = False,human_flag=True, train_all = True, random_noise=False)
