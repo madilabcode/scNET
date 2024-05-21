@@ -168,7 +168,7 @@ def make_term_predication(graphs, term_vec):
 def predict_kegg(gene_embedding, ref):
     annot = crate_kegg_annot(ref.index)
     annot_threshold = annot.sum()>=40
-    annot_threshold = annot_threshold[annot_threshold == True]
+    annot_threshold = annot_threshold[annot_threshold == True].sort_values(ascending=False).head(50)
     graph_embedded,_ = build_co_embeded_network(gene_embedding,ref)
     graph_ref,_ =build_co_embeded_network(ref,ref)
     kegg_pred = [make_term_predication([graph_embedded,graph_ref], annot[term]) for term in annot_threshold.index]
