@@ -18,9 +18,9 @@ conda env create -f ./Data/scNET-env.yaml
 
 ### We recommend using the Google Colab framework for running scNET. Our method works with a Scanpy AnnData object and provides the following outputs:
 
-New cell embeddings
-New gene embeddings
-The trained model
+New cell embedding,
+New gene embedding,
+The trained model,
 Pruned KNN network
 
 ### For a basic usage example of our framework, please refer to the following notebook:
