@@ -246,12 +246,12 @@ def train(data, loader,target_edges, highly_variable_index,number_of_batches=5 ,
           if writer is not None:
                   writer.add_scalar("total_loss/train", loss, epoch)
                   writer.add_scalar("row_loss/train", row_loss, epoch) 
-                  writer.add_scalar("col_loss/train", col_loss, epoch)       
+                  writer.add_scalar("col_loss/train", col_loss, epoch)          
     if train_all:
       if cell_flag:
-        save_obj(loader, "knn_loader"+model_name)
+        save_obj(loader, r"./KNNs/knn_loader"+model_name)
       else:
-        save_obj(new_knn_edge_index.cpu(), "new_knn_graph_"+model_name)
+        save_obj(new_knn_edge_index.cpu(), r"./KNNs/new_knn_graph_"+model_name)
 
       return model
 

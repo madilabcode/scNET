@@ -185,3 +185,10 @@ def predict_kegg(gene_embedding, ref):
     sns.set_theme(style='white',font_scale=1.5)
     plt.show()
     return df
+
+def plot_umap_cells(cell_embedding):    
+    obj = sc.AnnData(cell_embedding)
+    sc.pp.neighbors(obj, n_neighbors=12)
+    sc.tl.leiden(obj)
+    sc.tl.umap(obj)
+    sc.pl.umap(obj, color="leiden",palette=cp)
