@@ -160,7 +160,8 @@ def train(data, loader,target_edges, highly_variable_index,number_of_batches=5 ,
         col_emb_lst = []
         row_emb_lst = []
         new_knn_edge_index_list = []
-          
+        concat_flag = False 
+
         for _,batch in enumerate(loader):
             model.train()
             if cell_flag:
