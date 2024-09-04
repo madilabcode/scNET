@@ -4,7 +4,7 @@
 
 Recent advances in single-cell RNA sequencing (scRNA-seq) techniques have provided unprecedented insights into tissue heterogeneity. However, gene expression data alone often fails to capture changes in cellular pathways and complexes, which are more discernible at the protein level. Additionally, analyzing scRNA-seq data presents challenges due to high noise levels and zero inflation. In this study, we propose a novel approach to address these limitations by integrating scRNA-seq datasets with a protein-protein interaction (PPI) network. Our method employs a unique bi-graph architecture based on graph neural networks (GNNs), enabling the joint representation of gene expression and PPI network data. This approach models gene-to-gene relationships under specific biological contexts and refines cell-cell relations using an attention mechanism, resulting in new gene and cell embeddings. We provide comprehensive evaluations to demonstrate the effectiveness of our method.
 
-![Overview of the scNET Method](images/scNET.jpng)
+![Overview of the scNET Method](images/scNET.png)
 ## Download via Git
 
 To clone the repository, use the following command:
