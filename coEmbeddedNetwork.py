@@ -10,6 +10,7 @@ import umap.umap_
 import networkx as nx 
 from networkx.algorithms import community
 import networkx.algorithms.community as nx_comm
+from sklearn.metrics import precision_recall_curve, auc
 import Utils as ut 
 import gseapy as gp
 import os
@@ -18,6 +19,8 @@ from sklearn.metrics import average_precision_score, roc_auc_score, adjusted_ran
 import scanpy as sc
 
 import gseapy as gp
+import warnings
+warnings.filterwarnings('ignore')
 
 
 device = torch.device("cpu")
@@ -55,10 +58,121 @@ cp = {
 }
 
 def load_embeddings(proj_name):
-    embeded_genes = ut.load_obj(r"./Embedding/row_embedding" + proj_name)
-    embeded_cells = ut.load_obj(r"./Embedding/col_embedding" + proj_name)
-    node_feature = pd.read_csv(r"./Embedding/node_features" + proj_name,index_col=0)
-    return embeded_genes, embeded_cells, node_feature
+    embeded_genes = ut.load_obj(r"./Embedding/row_embedding_" + proj_name)
+    embeded_cells = ut.load_obj(r"./Embedding/col_embedding_" + proj_name)
+    node_features = pd.read_csv(r"./Embedding/node_features_" + proj_name,index_col=0)
+    out_features = ut.load_obj(r"./Embedding/out_features_" + proj_name)
+    return embeded_genes, embeded_cells, node_features, out_features
+
+
+def create_reconstructed_obj(node_features, out_features, orignal_obj=None):
+  embd = pd.DataFrame(out_features,index=node_features.columns[:out_features.shape[0]], columns=node_features.index)
+
+  embd = (embd - embd.min()) / (embd.max() - embd.min())
+
+  adata = sc.AnnData(embd)
+  if not orignal_obj is None:
+    adata.obs = orignal_obj.obs[:embd.shape[0]]
+
+  sc.tl.pca(adata, svd_solver='arpack')
+  sc.pp.neighbors(adata, n_neighbors=10, n_pcs=15)
+  sc.tl.leiden(adata,resolution=0.6)
+  sc.tl.umap(adata)
+  return adata
+
+
+def cal_marker_gene_aupr(adata, marker_genes=['Cd4', 'Cd8a', 'Cd14',"P2ry12","Ncr1"]\
+                              , cell_types=[['CD4 Tcells'], ["CD8 Tcells","NK"], ['Macrophages'], ['Microglia'],["NK"]]):
+  for marker_gene, cell_type in zip(marker_genes, cell_types):
+      gene_expression = adata[:, marker_gene].X.toarray().flatten()
+      binary_labels = (adata.obs["Cell Type"].isin(cell_type)).astype(int)
+
+      precision, recall, _ = precision_recall_curve(binary_labels, gene_expression)
+      aupr = auc(recall, precision)
+
+      print(f"AUPR for {marker_gene} in identifying {cell_type[0]}: {aupr:.4f}")
+
+
+def pathway_enricment(adata, groupby="seurat_clusters", groups=None):
+  adata.var.index = adata.var.index.str.upper()
+  kegg_gene_sets = gp.get_library('KEGG_2021_Human')
+
+  filtered_kegg = {pathway: [gene for gene in genes if gene in adata.var.index]
+                  for pathway, genes in kegg_gene_sets.items()}
+
+  filtered_kegg = {pathway: genes + ["t1"] for pathway, genes in filtered_kegg.items() if len(genes) > 0}
+
+
+  if groups is None:
+    groups = adata.obs[groupby].unique()
+    print(groups)
+
+  sc.tl.rank_genes_groups(adata, groupby=groupby, method='wilcoxon')
+
+  de_genes_per_group = {}
+  for group in groups:
+      dedf = sc.get.rank_genes_groups_df(adata, group=group)
+      dedf.names = dedf.names.str.upper()
+      print(dedf)
+      genes = dedf[(dedf['logfoldchanges'] > 0) & (dedf["pvals_adj"] <  0.05)]
+      de_genes_per_group[group] = dedf[(dedf['logfoldchanges'] > 0) & (dedf["pvals_adj"] <  0.05)]
+
+  enrichment_results = {}
+  significant_pathways = {}
+  significance_threshold = 0.05
+
+  for group, genes in de_genes_per_group.items():
+
+      try:
+        genes = genes['names'].values
+        enr = gp.enrichr(gene_list=(genes.tolist() + ["t1"]),
+                        gene_sets=filtered_kegg,
+                        background=list(adata.var.index) + ["t1"],# You can change this to other gene sets
+                        organism='Human',  # Specify organism as Mouse
+                        outdir=None)
+      except:
+        continue
+
+      significant = enr.results[enr.results['Adjusted P-value'] < significance_threshold]
+
+      enrichment_results[group] = enr.results
+      significant_pathways[group] = significant[['Term', 'Adjusted P-value']]
+
+#  for group, pathways in significant_pathways.items():
+#      print(f"Significant pathways for cluster {group}:")
+#      print(pathways)
+#      print("\n")
+
+  return de_genes_per_group, significant_pathways, filtered_kegg , enrichment_results
+
+
+def plot_de_pathways(significant_pathways,enrichment_results):
+  data_dict = significant_pathways
+  combined_df = pd.DataFrame()
+
+  for _, df in enrichment_results.items():
+      top5_df = df.sort_values(by='Adjusted P-value').head(20)
+      for dataset_name, df2 in enrichment_results.items():
+        df2 = df2.loc[df2.Term.isin(top5_df.Term)]
+        df2['Dataset'] = dataset_name
+        combined_df = pd.concat([combined_df, df2])
+
+  combined_df['Unique Term'] = combined_df['Term']
+
+  combined_df['-log10(Adjusted P-value)'] = -np.log(combined_df['Adjusted P-value'])
+
+  # Pivot the data to make a matrix suitable for a heatmap
+  pivot_df = combined_df.drop_duplicates().pivot(index="Unique Term", columns="Dataset", values="-log10(Adjusted P-value)")
+  pivot_df.fillna(0,inplace=True)
+  plt.figure(figsize=(10, 30))
+  g = sns.clustermap(pivot_df, annot=False, cmap="YlGnBu", linewidths=.5,figsize=(15,25))
+  plt.title('Heatmap of Pathway Significance by Dataset', fontsize=18)
+  g.ax_heatmap.set_xticklabels(g.ax_heatmap.get_xticklabels(), fontsize=15,rotation=45)
+  g.ax_heatmap.set_yticklabels(g.ax_heatmap.get_yticklabels(), fontsize=15)
+  g.ax_heatmap.set_xlabel('Dataset', fontsize=15)
+  g.ax_heatmap.set_ylabel('Pathway Term', fontsize=15)
+  plt.tight_layout()
+
 
 def plot_gene_umap_clustring(embedded_rows):
     means_embedd = KMeans(n_clusters=20, random_state=42).fit(embedded_rows)
@@ -131,13 +245,14 @@ def run_p_enr_on_range_clusterts(embd, refs,all_genes, min_n_clusters=20,max_n_c
 
 def crate_kegg_annot(all_genes):
     KEGG_custom = gp.get_library("KEGG_2021_Human")
-    KEGG_custom = {key:list(filter(lambda x: x in all_genes, value)) for key, value in KEGG_custom.items()}
-    array = [ (gene, key) for key in KEGG_custom for gene in KEGG_custom[key] ]
+    filtered_kegg = {pathway: [gene for gene in genes if gene in all_genes]
+                  for pathway, genes in KEGG_custom.items()}
+    array = [ (gene, key) for key in filtered_kegg for gene in filtered_kegg[key] ]
     kegg_df = pd.DataFrame(array)
-    df = pd.DataFrame(0, index=all_genes, columns=KEGG_custom.keys())
+    df = pd.DataFrame(0, index=all_genes, columns=filtered_kegg.keys())
 
     # Iterate through the dictionary to update the DataFrame
-    for key, values in KEGG_custom.items():
+    for key, values in filtered_kegg.items():
         for value in values:
             df.loc[value, key] = 1
     
@@ -166,6 +281,7 @@ def make_term_predication(graphs, term_vec):
     return results
 
 def predict_kegg(gene_embedding, ref):
+    ref.index = list(map(lambda x: x.upper(),ref.index))
     annot = crate_kegg_annot(ref.index)
     annot_threshold = annot.sum()>=40
     annot_threshold = annot_threshold[annot_threshold == True].sort_values(ascending=False).head(50)
