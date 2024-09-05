@@ -102,10 +102,8 @@ def pathway_enricment(adata, groupby="seurat_clusters", groups=None):
 
   filtered_kegg = {pathway: genes + ["t1"] for pathway, genes in filtered_kegg.items() if len(genes) > 0}
 
-
   if groups is None:
     groups = adata.obs[groupby].unique()
-    print(groups)
 
   sc.tl.rank_genes_groups(adata, groupby=groupby, method='wilcoxon')
 
@@ -113,7 +111,6 @@ def pathway_enricment(adata, groupby="seurat_clusters", groups=None):
   for group in groups:
       dedf = sc.get.rank_genes_groups_df(adata, group=group)
       dedf.names = dedf.names.str.upper()
-      print(dedf)
       genes = dedf[(dedf['logfoldchanges'] > 0) & (dedf["pvals_adj"] <  0.05)]
       de_genes_per_group[group] = dedf[(dedf['logfoldchanges'] > 0) & (dedf["pvals_adj"] <  0.05)]
 
@@ -269,16 +266,21 @@ def calculate_aupr(pred, vec, test_vec):
 def make_term_predication(graphs, term_vec):
     train_vec = term_vec.sample(frac=0.7)
     test_vec = term_vec[~term_vec.index.isin(train_vec.index)]
+    test_pos = test_vec[test_vec == 1]
+    test_neg = test_vec[test_vec == 0].sample(test_pos.shape[0])
+    test_vec = test_vec[list(test_pos.index) + list(test_neg.index)]
     vec = term_vec.copy()
     vec *= list(map(lambda x:  train_vec[x] if x in train_vec.index else float(0), vec.index))
-    results = []
+    results_roc = []
+    result_aupr = []
     for graph in graphs:
         w = nx.to_pandas_adjacency(graph)
         w = w.loc[term_vec.index, term_vec.index]
         train_vec = vec.copy()
         pred = ut.propagation(train_vec.values, w)
-        results.append([calc_roc(pred , term_vec, test_vec)])
-    return results
+        results_roc.append([calc_roc(pred , term_vec, test_vec)])
+        result_aupr.append([calculate_aupr(pred , term_vec, test_vec)])
+    return result_aupr
 
 def predict_kegg(gene_embedding, ref):
     ref.index = list(map(lambda x: x.upper(),ref.index))
@@ -290,14 +292,14 @@ def predict_kegg(gene_embedding, ref):
     kegg_pred = [make_term_predication([graph_embedded,graph_ref], annot[term]) for term in annot_threshold.index]
    
     kegg_pred = np.array(kegg_pred).squeeze()
-    df = pd.DataFrame({"ROCAUC" : kegg_pred.T.reshape(-1), "Method": ["scNET" for i in range(kegg_pred.shape[0])]  +  ["Counts" for i in range(kegg_pred.shape[0])]})
+    df = pd.DataFrame({"AUPR" : kegg_pred.T.reshape(-1), "Method": ["scNET" for i in range(kegg_pred.shape[0])]  +  ["Counts" for i in range(kegg_pred.shape[0])]})
 
     fig, ax = plt.subplots(figsize=[10,7])
     fig.set_dpi(600)
 
     custom_palette =  ['darkturquoise', 'lightsalmon']
 
-    sns.boxenplot(ax=ax, data=df,x="Method", y="ROCAUC", palette=custom_palette)    
+    sns.boxenplot(ax=ax, data=df,x="Method", y="AUPR", palette=custom_palette)    
     sns.set_theme(style='white',font_scale=1.5)
     plt.show()
     return df
