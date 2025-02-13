@@ -7,8 +7,6 @@ from torch_geometric.nn.conv import transformer_conv
 from torch_geometric.utils import negative_sampling
 from sklearn.metrics import average_precision_score, roc_auc_score
 from torch_geometric.utils import add_self_loops, remove_self_loops, softmax
-import matplotlib.pyplot as plt
-import seaborn as sns
 import math
 import numpy as np
 import pandas as pd
@@ -34,23 +32,23 @@ class FeatureDecoder(torch.nn.Module):
         out = self.decoder(z)
         return out 
         
-class MutaelEncoder(torch.nn.Module):
+class MutualEncoder(torch.nn.Module):
   def __init__(self,col_dim, row_dim,num_layers=4, drop_p = 0.25):
-    super(MutaelEncoder, self).__init__()
+    super(MutualEncoder, self).__init__()
     self.col_dim = col_dim
     self.row_dim = row_dim
     self.num_layers = num_layers
 
     self.rows_layers = nn.ModuleList([
       sequential.Sequential('x,edge_index', [
-                                  (SAGEConv(self.row_dim, self.row_dim), 'x, edge_index -> x1'),
+                                  (GCNConv(self.row_dim, self.row_dim), 'x, edge_index -> x1'),
                                   (nn.Dropout(drop_p,inplace=False), 'x1-> x2'),
                                   nn.LeakyReLU(inplace=True),
                                   ]) for _ in range(num_layers)])
     
     self.cols_layers = nn.ModuleList([
       sequential.Sequential('x,edge_index', [
-                                  (SAGEConv(self.col_dim, self.col_dim), 'x, edge_index -> x1'),
+                                  (GCNConv(self.col_dim, self.col_dim), 'x, edge_index -> x1'),
                                   nn.LeakyReLU(inplace=True),
                                   (nn.Dropout(drop_p,inplace=False), 'x1-> x2'),
                                 ]) for _ in range(num_layers)])
@@ -168,7 +166,7 @@ class scNET(torch.nn.Module):
     self.lambda_cols = lambda_cols
 
 
-    self.encoder = MutaelEncoder(col_dim, row_dim,num_layers, drop_p)
+    self.encoder = MutualEncoder(col_dim, row_dim,num_layers, drop_p)
     self.rows_encoder =  DimEncoder(row_dim, inter_row_dim, embd_row_dim,drop_p = drop_p, scale_param=None, reducer=False)
 
     self.cols_encoder =  DimEncoder(col_dim, inter_col_dim, embd_col_dim,drop_p=drop_p, reducer=True)

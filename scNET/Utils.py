@@ -11,6 +11,7 @@ alpha  = 0.9
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 epsilon = 0.0001
 
+
 def save_obj(obj, name):
     with open(name + '.pkl', 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
@@ -187,7 +188,22 @@ def crate_anndata(path, pcs = 15,neighbors = 30):
 def save_model(path, model):
     torch.save(model.state_dict(), path)
 
-def load_model(path,node_feature,net):
-    model = VGAE(GAEncoder(node_feature.shape[1], 350, 100), GAEDncoder(100,350)).to(device)
-    state = torch.load(path)
-    model.load_state_dict(state)
+def load_embeddings(proj_name):
+    '''
+    Loads the embeddings and gene expression data for a given project.
+
+    Args:
+        proj_name (str): The name of the project.
+
+    Returns:
+        tuple: A tuple containing:
+            - embedded_genes (np.ndarray): Learned gene embeddings.
+            - embedded_cells (np.ndarray): Learned cell embeddings.
+            - node_features (pd.DataFrame): Original gene expression matrix.
+            - out_features (np.ndarray): Reconstructed gene expression matrix.
+    '''
+    embeded_genes = load_obj(r"./Embedding/row_embedding_" + proj_name)
+    embeded_cells = load_obj(r"./Embedding/col_embedding_" + proj_name)
+    node_features = pd.read_csv(r"./Embedding/node_features_" + proj_name,index_col=0)
+    out_features = load_obj(r"./Embedding/out_features_" + proj_name)
+    return embeded_genes, embeded_cells, node_features, out_features

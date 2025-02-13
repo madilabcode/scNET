@@ -6,12 +6,11 @@ import seaborn as sns
 import torch 
 from sklearn.cluster import KMeans
 #import umap.plot
-import umap.umap_
 import networkx as nx 
 from networkx.algorithms import community
 import networkx.algorithms.community as nx_comm
 from sklearn.metrics import precision_recall_curve, auc
-import Utils as ut 
+import scNET.Utils as ut 
 import gseapy as gp
 import os
 
@@ -105,8 +104,8 @@ def create_reconstructed_obj(node_features, out_features, orignal_obj=None):
   return adata
 
 
-def cal_marker_gene_aupr(adata, marker_genes=['Cd4', 'Cd8a', 'Cd14',"P2ry12","Ncr1"]\
-                              , cell_types=[['CD4 Tcells'], ["CD8 Tcells","NK"], ['Macrophages'], ['Microglia'],["NK"]]):
+def calculate_marker_gene_aupr(adata, marker_genes=['Cd4','Cd14',"P2ry12","Ncr1"]\
+                              , cell_types=[['CD4 Tcells'], ['Macrophages'], ['Microglia'],["NK"]]):
   '''
     Calculates the Area Under the Precision-Recall curve (AUPR) for specified marker genes in identifying specific cell types.
 
