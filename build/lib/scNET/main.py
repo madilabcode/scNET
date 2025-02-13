@@ -297,13 +297,13 @@ def nx_to_pyg_edge_index(G, mapping=None):
         edge_index[1, i] = mapping[dst]
     return edge_index, mapping
 
-def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
+def run_scNET(path = "./Data/cell_line.h5ad",pre_processing_flag = True ,biogrid_flag = False,
           human_flag=False,number_of_batches=5,split_cells = False, n_neighbors=25,
           max_epoch=150, model_name="", save_model_flag = False):
     """
     Main function to load data, build networks, and run the scNET training pipeline.
     Args:
-      obj (AnnData, optional): AnnData obj.
+      path (str, optional): Path to the AnnData file (.h5ad).
       pre_processing_flag (bool, optional): If True, perform pre-processing steps.
       biogrid_flag (bool, optional): If True, use BioGRID-formatted data for network building.
       human_flag (bool, optional): Controls gene name casing in the network.
@@ -318,9 +318,11 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
     """
     
     if pre_processing_flag:
+       obj = sc.read(path)
        obj = pre_processing(obj,n_neighbors)
 
     else:
+      obj = sc.read(path)
       obj.X = obj.raw.X
       sc.pp.log1p(obj)
       sc.pp.neighbors(obj, n_neighbors=n_neighbors, n_pcs=15)
