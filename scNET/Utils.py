@@ -88,7 +88,6 @@ def wilcoxon_enrcment_test(up_sig, down_sig, exp):
         backround_exp = exp.loc[exp.index.isin(down_sig)]
         
     rank = ranksums(backround_exp,gene_exp,alternative="less")[1] # rank expression of up sig higher than backround
-    rank = 1 if rank > 0.05 else rank 
     return -1 * np.log(rank)
 
 
@@ -112,10 +111,37 @@ def signature_values(exp, up_sig, down_sig=None):
     return exp.apply(lambda cell: wilcoxon_enrcment_test(up_sig, down_sig, cell), axis=0)
 
 def run_signature(obj, up_sig, down_sig=None, umap_flag = True, alpha = 0.9,prop_exp = None):
-    exp = obj.raw.to_adata().to_df().T
+    """
+    Calculate and visualize a propagated signature score for cells in the given object.
+    Parameters
+    ----------
+    obj : AnnData
+        The annotated data object containing gene expression matrix and graph data.
+    up_sig : list or set
+        A collection of genes used to calculate the up-regulated signature score.
+    down_sig : list or set, optional
+        A collection of genes used to calculate the down-regulated signature score.
+        If None, only the up-regulated signature is used. Default is None.
+    umap_flag : bool, optional
+        If True, generates a UMAP plot colored by the calculated signature score.
+        If False, generates a t-SNE plot. Default is True.
+    alpha : float, optional
+        A parameter controlling the smoothing or propagation factor during signature
+        score calculation. Default is 0.9.
+    prop_exp : None or other, optional
+        An unused parameter placeholder, reserved for future use or extended
+        signature propagation functionality.
+    Returns
+    -------
+    np.ndarray
+        An array of propagated signature scores, with one score per cell. The
+        scores are also stored in obj.obs["SigScore"].
+    """
+
+    exp = obj.to_df().T
     graph = obj.obsp["connectivities"].toarray()
-    prop_exp = propagate_all_genes(graph, exp)
-    sigs_scores = signature_values(prop_exp, up_sig, down_sig)
+    sigs_scores = signature_values(exp, up_sig, down_sig)
+    sigs_scores = propagation(sigs_scores, graph)
     obj.obs["SigScore"] = sigs_scores
     # color_map = "jet"
     if umap_flag:
@@ -123,6 +149,13 @@ def run_signature(obj, up_sig, down_sig=None, umap_flag = True, alpha = 0.9,prop
     else:
         sc.pl.tsne(obj, color=["SigScore"],color_map="magma")
     return sigs_scores
+
+def calculate_roc_auc(idents, predict):
+    fpr, tpr, _ = roc_curve(idents, predict, pos_label=1)
+    return auc(fpr, tpr)
+
+def calculate_aupr(idents, predict):
+    return average_precision_score(idents, predict)
 
 def calculate_roc_auc(idents, predict):
     fpr, tpr, _ = roc_curve(idents, predict, pos_label=1)

@@ -41,14 +41,14 @@ class MutualEncoder(torch.nn.Module):
 
     self.rows_layers = nn.ModuleList([
       sequential.Sequential('x,edge_index', [
-                                  (GCNConv(self.row_dim, self.row_dim), 'x, edge_index -> x1'),
+                                  (SAGEConv(self.row_dim, self.row_dim), 'x, edge_index -> x1'),
                                   (nn.Dropout(drop_p,inplace=False), 'x1-> x2'),
                                   nn.LeakyReLU(inplace=True),
                                   ]) for _ in range(num_layers)])
     
     self.cols_layers = nn.ModuleList([
       sequential.Sequential('x,edge_index', [
-                                  (GCNConv(self.col_dim, self.col_dim), 'x, edge_index -> x1'),
+                                  (SAGEConv(self.col_dim, self.col_dim), 'x, edge_index -> x1'),
                                   nn.LeakyReLU(inplace=True),
                                   (nn.Dropout(drop_p,inplace=False), 'x1-> x2'),
                                 ]) for _ in range(num_layers)])

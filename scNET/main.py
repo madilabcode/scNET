@@ -25,8 +25,7 @@ NETWORK_CUTOFF = 0.5
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 warnings.filterwarnings('ignore')
 torch.manual_seed(101)
-print(os.getcwd())
-print(pkg_resources.resource_filename(__name__, os.getcwd()))
+
 
 def build_network(obj, net, biogrid_flag = False, human_flag = False):
     """
@@ -219,7 +218,7 @@ def train(data, loader, highly_variable_index,number_of_batches=5 ,
               print(new_knn_edge_index.shape[1] / loader.dataset.edge_index.shape[0])
               loader = mini_batch_knn(new_knn_edge_index, new_knn_edge_index.shape[1] // number_of_batches)
  
- 
+
 
         if epoch%10 == 0:
           if not cell_flag:
@@ -320,7 +319,8 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
     Returns:
       scNET: A trained scNET model.
     """
-    print("")
+    torch.manual_seed(42)
+
     if pre_processing_flag:
        obj = pre_processing(obj,n_neighbors)
 
