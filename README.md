@@ -50,13 +50,13 @@ Retrieve embeddings and model outputs with:
 `embedded_genes, embedded_cells, node_features , out_features =  scNET.load_embeddings(project_name)`
 
 where:
-* embedded_genes (np.ndarray): Learned gene embeddings.
+* **embedded_genes (np.ndarray)**: Learned gene embeddings.
   
-* embedded_cells (np.ndarray): Learned cell embeddings.
+* **embedded_cells (np.ndarray)**: Learned cell embeddings.
   
-* node_features (pd.DataFrame): Original gene expression matrix.
+* **node_features (pd.DataFrame)**: Original gene expression matrix.
   
-* out_features (np.ndarray): Reconstructed gene expression matrix
+* **out_features (np.ndarray)**: Reconstructed gene expression matrix
   
 
 Create a new AnnData object using model outputs:
