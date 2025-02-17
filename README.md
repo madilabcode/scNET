@@ -26,23 +26,23 @@ To train scNET on scRNA-seq data, first load an AnnData object using Scanpy, the
 
 with the following args:
 
-obj (AnnData, optional): AnnData obj.
+* **obj (AnnData, optional)**: AnnData obj.
 
-pre_processing_flag (bool, optional): If True, perform pre-processing steps.
+* **pre_processing_flag (bool, optional)**: If True, perform pre-processing steps.
 
-human_flag (bool, optional): Controls gene name casing in the network.
+* **human_flag (bool, optional)**: Controls gene name casing in the network.
 
-number_of_batches (int, optional): Number of mini-batches for the training.
+* **number_of_batches (int, optional)**: Number of mini-batches for the training.
 
-split_cells (bool, optional): If True, split by cells instead of edges during training.
+* **split_cells (bool, optional)**: If True, split by cells instead of edges during training.
 
-n_neighbors (int, optional): Number of neighbors for building the adjacency graph.
+* **n_neighbors (int, optional)**: Number of neighbors for building the adjacency graph.
 
-max_epoch (int, optional): Max number of epochs for model training.
+* **max_epoch (int, optional)**: Max number of epochs for model training.
 
-model_name (str, optional): Identifier for saving the model outputs.
+* **model_name (str, optional)**: Identifier for saving the model outputs.
 
-save_model_flag (bool, optional): If True, save the trained model.
+* **save_model_flag (bool, optional)**: If True, save the trained model.
 
 
 Retrieve embeddings and model outputs with:
@@ -50,10 +50,13 @@ Retrieve embeddings and model outputs with:
 `embedded_genes, embedded_cells, node_features , out_features =  scNET.load_embeddings(project_name)`
 
 where:
-    - embedded_genes (np.ndarray): Learned gene embeddings.
-    - embedded_cells (np.ndarray): Learned cell embeddings.
-    - node_features (pd.DataFrame): Original gene expression matrix.
-    - out_features (np.ndarray): Reconstructed gene expression matrix
+* embedded_genes (np.ndarray): Learned gene embeddings.
+  
+* embedded_cells (np.ndarray): Learned cell embeddings.
+  
+* node_features (pd.DataFrame): Original gene expression matrix.
+  
+* out_features (np.ndarray): Reconstructed gene expression matrix
   
 
 Create a new AnnData object using model outputs:
@@ -64,6 +67,6 @@ Construct a co-embedded network using the gene embeddings:
 `scNET.build_co_embeded_network(embedded_genes, node_features)`
 ## Tutorial
 
-### For a basic usage example of our framework, please refer to the following notebook:
+For a basic usage example of our framework, please refer to the following notebook:
 [scNET Example Notebook](https://colab.research.google.com/github/madilabcode/scNET/blob/main/scNET.ipynb)
 
