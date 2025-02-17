@@ -15,6 +15,8 @@ from torch.utils.data import DataLoader
 import warnings
 import gc 
 import scNET.Utils as ut
+import pkg_resources
+from tqdm import tqdm
 
 INTER_DIM = 250
 EMBEDDING_DIM = 75
@@ -23,6 +25,8 @@ NETWORK_CUTOFF = 0.5
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 warnings.filterwarnings('ignore')
 torch.manual_seed(101)
+print(os.getcwd())
+print(pkg_resources.resource_filename(__name__, os.getcwd()))
 
 def build_network(obj, net, biogrid_flag = False, human_flag = False):
     """
@@ -155,8 +159,8 @@ def train(data, loader, highly_variable_index,number_of_batches=5 ,
     best_auc = 0.5 
     concat_flag = False
 
-    for epoch in range(max_epoch):
-        
+    for epoch in tqdm(range(max_epoch), desc="Training", total=max_epoch):
+
         total_row_loss = 0
         total_col_loss = 0
         col_emb_lst = []
@@ -215,39 +219,39 @@ def train(data, loader, highly_variable_index,number_of_batches=5 ,
               print(new_knn_edge_index.shape[1] / loader.dataset.edge_index.shape[0])
               loader = mini_batch_knn(new_knn_edge_index, new_knn_edge_index.shape[1] // number_of_batches)
  
-
+ 
 
         if epoch%10 == 0:
           if not cell_flag:
             knn_edge_index = list(loader)[0].T.to(device)
 
-          print(f"row loss:{total_row_loss}, col loss:{total_col_loss}")
+          #print(f"row loss:{total_row_loss}, col loss:{total_col_loss}")
 
           auc, ap = test_recon(model, x.to(device), data, knn_edge_index)
 
-          print('Epoch: {:03d}, AUC: {:.4f}, AP: {:.4f}'.format(epoch, auc, ap))
+          #print('Epoch: {:03d}, AUC: {:.4f}, AP: {:.4f}'.format(epoch, auc, ap))
           
           if auc > best_auc:
             best_auc = auc
 
-          save_model(r"./Models/BiEncdoer_best_" + model_name + ".pt", model)
+          #save_model(r"./Models/BiEncdoer_best_" + model_name + ".pt", model)
           if cell_flag:
             st = torch.stack(row_emb_lst)
             row_embed = st.mean(dim=0)
-            save_obj(torch.concat(col_emb_lst).cpu().detach().numpy(), r"./Embedding/col_embedding_" + model_name)
-            save_obj(row_embed.cpu().detach().numpy(), r"./Embedding/row_embedding_" + model_name)              
-            save_obj(torch.concat(out_features_lst).cpu().detach().numpy(),  r"./Embedding/out_features_" + model_name)
+            save_obj(torch.concat(col_emb_lst).cpu().detach().numpy(), pkg_resources.resource_filename(__name__,r"Embedding/col_embedding_" + model_name))
+            save_obj(row_embed.cpu().detach().numpy(), pkg_resources.resource_filename(__name__,r"Embedding/row_embedding_" + model_name))           
+            save_obj(torch.concat(out_features_lst).cpu().detach().numpy(),  pkg_resources.resource_filename(__name__,r"Embedding/out_features_" + model_name))
           else:
-            save_obj(new_knn_edge_index.cpu(), r"./KNNs/best_new_knn_graph_" + model_name)
-            save_obj(col_embed.cpu().detach().numpy(), r"./Embedding/col_embedding_" + model_name)
-            save_obj(row_embed.cpu().detach().numpy(), r"./Embedding/row_embedding_" + model_name)
-            save_obj(out_features.cpu().detach().numpy(),  r"./Embedding/out_features_" + model_name)
+            save_obj(new_knn_edge_index.cpu(),pkg_resources.resource_filename(__name__, r"KNNs/best_new_knn_graph_" + model_name))
+            save_obj(col_embed.cpu().detach().numpy(), pkg_resources.resource_filename(__name__,r"Embedding/col_embedding_" + model_name))
+            save_obj(row_embed.cpu().detach().numpy(), pkg_resources.resource_filename(__name__,r"Embedding/row_embedding_" + model_name))
+            save_obj(out_features.cpu().detach().numpy(),  pkg_resources.resource_filename(__name__,r"Embedding/out_features_" + model_name))
 
-  
-    if cell_flag:
-      save_obj(loader, "knn_loader"+model_name)
-    else:
-      save_obj(new_knn_edge_index.cpu(), "new_knn_graph_"+model_name)
+    print(f"Best Network AUC: {best_auc}")
+   # if cell_flag:
+   #   save_obj(loader, "knn_loader"+model_name)
+   # else:
+   #   save_obj(new_knn_edge_index.cpu(), "new_knn_graph_"+model_name)
 
     return model
 
@@ -316,7 +320,7 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
     Returns:
       scNET: A trained scNET model.
     """
-    
+    print("")
     if pre_processing_flag:
        obj = pre_processing(obj,n_neighbors)
 
@@ -326,12 +330,15 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
       sc.pp.neighbors(obj, n_neighbors=n_neighbors, n_pcs=15)
     
     if not biogrid_flag:
-      net = pd.read_csv(r"./Data/format_h_sapiens.csv")[["g1_symbol","g2_symbol","conn"]].drop_duplicates()
+      print(pkg_resources.resource_filename(__name__,r"Data/format_h_sapiens.csv"))
+
+      net = pd.read_csv(pkg_resources.resource_filename(__name__,r"Data/format_h_sapiens.csv"))[["g1_symbol","g2_symbol","conn"]].drop_duplicates()
       net, ppi, node_feature = build_network(obj, net,human_flag=human_flag)
       print(f"N genes: {node_feature.shape}")
 
     else:
-      net = pd.read_table(r"./Data/BIOGRID.tab.txt")[["OFFICIAL_SYMBOL_A","OFFICIAL_SYMBOL_B"]].drop_duplicates()
+      print(pkg_resources.resource_filename(__name__,r"Data/BIOGRID.tab.txt"))
+      net = pd.read_table(pkg_resources.resource_filename(__name__,r"Data/BIOGRID.tab.txt"))[["OFFICIAL_SYMBOL_A","OFFICIAL_SYMBOL_B"]].drop_duplicates()
       net, ppi, node_feature  = build_network(obj, net, biogrid_flag,human_flag)
       print(f"N genes: {node_feature.shape}")
 
@@ -349,7 +356,7 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
       loader = mini_batch_knn(knn_edge_index, knn_edge_index.shape[1] // number_of_batches)
   
     highly_variable_index = highly_variable_index[node_feature.index]
-    node_feature.to_csv(r"./Embedding/node_features_" + model_name)
+    node_feature.to_csv(pkg_resources.resource_filename(__name__,r"Embedding/node_features_" + model_name))
     x = node_feature.values
 
     x = torch.tensor(x, dtype=torch.float32).cpu()
@@ -362,4 +369,5 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
                     rduce_interavel=30,model_name=model_name, cell_flag=split_cells)
     
     if save_model_flag:
-      save_model(r"./Models/scNET_" + model_name + ".pt", model)
+      save_model(pkg_resources.resource_filename(__name__, r"Models/scNET_" + model_name + ".pt"), model)
+

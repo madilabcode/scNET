@@ -19,6 +19,7 @@ import scanpy as sc
 
 import gseapy as gp
 import warnings
+import pkg_resources
 warnings.filterwarnings('ignore')
 
 
@@ -55,27 +56,6 @@ cp = {
   '28': '#bcbd22',
   '29': '#17becf'
 }
-
-def load_embeddings(proj_name):
-    '''
-    Loads the embeddings and gene expression data for a given project.
-
-    Args:
-        proj_name (str): The name of the project.
-
-    Returns:
-        tuple: A tuple containing:
-            - embedded_genes (np.ndarray): Learned gene embeddings.
-            - embedded_cells (np.ndarray): Learned cell embeddings.
-            - node_features (pd.DataFrame): Original gene expression matrix.
-            - out_features (np.ndarray): Reconstructed gene expression matrix.
-    '''
-    embeded_genes = ut.load_obj(r"./Embedding/row_embedding_" + proj_name)
-    embeded_cells = ut.load_obj(r"./Embedding/col_embedding_" + proj_name)
-    node_features = pd.read_csv(r"./Embedding/node_features_" + proj_name,index_col=0)
-    out_features = ut.load_obj(r"./Embedding/out_features_" + proj_name)
-    return embeded_genes, embeded_cells, node_features, out_features
-
 
 def create_reconstructed_obj(node_features, out_features, orignal_obj=None):
   '''
@@ -128,7 +108,7 @@ def calculate_marker_gene_aupr(adata, marker_genes=['Cd4','Cd14',"P2ry12","Ncr1"
       print(f"AUPR for {marker_gene} in identifying {cell_type[0]}: {aupr:.4f}")
 
 
-def pathway_enricment(adata, groupby="seurat_clusters", groups=None):
+def pathway_enricment(adata, groupby="seurat_clusters", groups=None, gene_sets=None):
   '''
     Performs pathway enrichment analysis using KEGG pathways for differentially expressed genes in specific groups.
 
@@ -136,6 +116,7 @@ def pathway_enricment(adata, groupby="seurat_clusters", groups=None):
         adata (AnnData): The annotated data matrix (AnnData object) containing gene expression data and cell clustering/grouping information.
         groupby (str, optional): The key in `adata.obs` to group cells by for differential expression analysis. Defaults to "seurat_clusters".
         groups (list, optional): A list of specific groups (clusters or cell types) to analyze. If None, all unique groups in `adata.obs[groupby]` are used. Defaults to None.
+        gene_sets (dict, optional): A dictionary of gene sets to use for pathway enrichment analysis. If None, the KEGG 2021 Human gene sets are used. Defaults to None.
 
     Returns:
         tuple: A tuple containing:
@@ -151,12 +132,13 @@ def pathway_enricment(adata, groupby="seurat_clusters", groups=None):
         - Pathways with adjusted p-values below 0.05 are considered significant.
   '''
   adata.var.index = adata.var.index.str.upper()
-  kegg_gene_sets = gp.get_library('KEGG_2021_Human')
+  if gene_sets is None:
+    gene_sets = gp.get_library('KEGG_2021_Human')
 
-  filtered_kegg = {pathway: [gene for gene in genes if gene in adata.var.index]
-                  for pathway, genes in kegg_gene_sets.items()}
+  filtered_gene_set = {pathway: [gene for gene in genes if gene in adata.var.index]
+                  for pathway, genes in gene_sets.items()}
 
-  filtered_kegg = {pathway: genes + ["t1"] for pathway, genes in filtered_kegg.items() if len(genes) > 0}
+  filtered_gene_set = {pathway: genes for pathway, genes in filtered_gene_set.items() if len(genes) > 0}
 
 
   if groups is None:
@@ -179,9 +161,9 @@ def pathway_enricment(adata, groupby="seurat_clusters", groups=None):
 
       try:
         genes = genes['names'].values
-        enr = gp.enrichr(gene_list=(genes.tolist() + ["t1"]),
-                        gene_sets=filtered_kegg,
-                        background=list(adata.var.index) + ["t1"],
+        enr = gp.enrichr(gene_list=(genes.tolist()),
+                        gene_sets=filtered_gene_set,
+                        background=list(adata.var.index),
                         organism='Human',  
                         outdir=None)
       except:
@@ -193,16 +175,17 @@ def pathway_enricment(adata, groupby="seurat_clusters", groups=None):
       significant_pathways[group] = significant[['Term', 'Adjusted P-value']]
 
 
-  return de_genes_per_group, significant_pathways, filtered_kegg , enrichment_results
+  return de_genes_per_group, significant_pathways, filtered_gene_set , enrichment_results
 
 
-def plot_de_pathways(significant_pathways,enrichment_results):
+def plot_de_pathways(significant_pathways,enrichment_results, head=20):
   '''
     Plots a heatmap of the -log10(Adjusted P-value) for significant pathways across multiple datasets.
 
     Args:
         significant_pathways (dict): A dictionary where keys are dataset names (or groups), and values are DataFrames containing significant pathways and their adjusted p-values.
         enrichment_results (dict): A dictionary where keys are dataset names (or groups), and values are DataFrames containing full pathway enrichment results, including adjusted p-values for each pathway.
+        head (int, optional): The number of top pathways to display in the heatmap. Defaults to 20.
 
     Returns:
         None: The function generates and displays a heatmap showing the significance (-log10(Adjusted P-value)) of the top 20 pathways across different datasets.
@@ -213,7 +196,7 @@ def plot_de_pathways(significant_pathways,enrichment_results):
   combined_df = pd.DataFrame()
 
   for _, df in enrichment_results.items():
-      top5_df = df.sort_values(by='Adjusted P-value').head(20)
+      top5_df = df.sort_values(by='Adjusted P-value').head(head)
       for dataset_name, df2 in enrichment_results.items():
         df2 = df2.loc[df2.Term.isin(top5_df.Term)]
         df2['Dataset'] = dataset_name
@@ -248,13 +231,13 @@ def plot_gene_umap_clustring(embedded_rows):
     return means_embedd.labels_ 
 
 
-def build_co_embeded_network(embedded_rows,node_fetures, threshold=99):
+def build_co_embeded_network(embedded_rows ,node_features,threshold=99):
     '''
     Builds a co-embedded network from the given embedded rows using a correlation-based thresholding approach and detects communities using the Louvain algorithm.
 
     Args:
         embedded_rows (np.ndarray): A matrix of embeddings (e.g., gene embeddings) where each row corresponds to an entity (e.g., gene or cell).
-        node_fetures (pd.DataFrame): A DataFrame containing features or identifiers for the nodes, where the index corresponds to the entities in `embedded_rows`.
+        node_features (pd.DataFrame): A DataFrame containing features or identifiers for the nodes, where the index corresponds to the entities in `embedded_rows`.
         threshold (int, optional): The percentile threshold to use when binarizing the correlation matrix. Defaults to 99.
 
     Returns:
@@ -277,7 +260,7 @@ def build_co_embeded_network(embedded_rows,node_fetures, threshold=99):
     graph = nx.from_numpy_array(mat)
     comm = nx_comm.louvain_communities(graph,resolution=1, seed=42)
     mod = nx_comm.modularity(graph, comm)
-    map_nodes = {list(graph.nodes)[i]:node_fetures.index[i] for i in range(len(node_fetures.index))}
+    map_nodes = {list(graph.nodes)[i]:node_features.index[i] for i in range(len(node_features.index))}
     graph = nx.relabel_nodes(graph,map_nodes)
     return graph, mod 
 
@@ -432,7 +415,7 @@ def make_term_predication(graphs, term_vec):
         result_aupr.append([calculate_aupr(pred , term_vec, test_vec)])
     return result_aupr
 
-def predict_kegg(gene_embedding, ref):
+def test_KEGG_prediction(gene_embedding, ref):
     '''
     Predicts KEGG pathway memberships using gene embeddings and reference data, and evaluates the performance using AUPR.
 

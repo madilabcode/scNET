@@ -6,6 +6,7 @@ from scipy.stats import ranksums
 from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import average_precision_score
 import pickle 
+import pkg_resources
 
 alpha  = 0.9
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -188,6 +189,7 @@ def crate_anndata(path, pcs = 15,neighbors = 30):
 def save_model(path, model):
     torch.save(model.state_dict(), path)
 
+
 def load_embeddings(proj_name):
     '''
     Loads the embeddings and gene expression data for a given project.
@@ -202,8 +204,8 @@ def load_embeddings(proj_name):
             - node_features (pd.DataFrame): Original gene expression matrix.
             - out_features (np.ndarray): Reconstructed gene expression matrix.
     '''
-    embeded_genes = load_obj(r"./Embedding/row_embedding_" + proj_name)
-    embeded_cells = load_obj(r"./Embedding/col_embedding_" + proj_name)
-    node_features = pd.read_csv(r"./Embedding/node_features_" + proj_name,index_col=0)
-    out_features = load_obj(r"./Embedding/out_features_" + proj_name)
+    embeded_genes = load_obj(pkg_resources.resource_filename(__name__,r"./Embedding/row_embedding_" + proj_name))
+    embeded_cells = load_obj(pkg_resources.resource_filename(__name__,r"./Embedding/col_embedding_" + proj_name))
+    node_features = pd.read_csv(pkg_resources.resource_filename(__name__,r"./Embedding/node_features_" + proj_name),index_col=0)
+    out_features = load_obj(pkg_resources.resource_filename(__name__,r"./Embedding/out_features_" + proj_name))
     return embeded_genes, embeded_cells, node_features, out_features
