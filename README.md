@@ -45,7 +45,7 @@ with the following args:
 * **save_model_flag (bool, optional)**: If True, save the trained model.
 
 
-Retrieve embeddings and model outputs with:
+### Retrieve embeddings and model outputs with:
 
 `embedded_genes, embedded_cells, node_features , out_features =  scNET.load_embeddings(project_name)`
 
@@ -59,11 +59,11 @@ where:
 * **out_features (np.ndarray)**: Reconstructed gene expression matrix
   
 
-Create a new AnnData object using model outputs:
+### Create a new AnnData object using model outputs:
 
 `recon_obj = scNET.create_reconstructed_obj(node_features, out_features, obj)`
 
-Construct a co-embedded network using the gene embeddings:
+### Construct a co-embedded network using the gene embeddings:
 `scNET.build_co_embeded_network(embedded_genes, node_features)`
 ## Tutorial
 
