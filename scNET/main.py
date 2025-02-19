@@ -17,10 +17,13 @@ import gc
 import scNET.Utils as ut
 import pkg_resources
 from tqdm import tqdm
+import warnings
 
 INTER_DIM = 250
 EMBEDDING_DIM = 75
 NETWORK_CUTOFF = 0.5
+MAX_CELLS_BATCH_SIZE = 2000
+MAX_CELLS_FOR_SPLITING = 10000
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 warnings.filterwarnings('ignore')
@@ -329,6 +332,15 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
       sc.pp.log1p(obj)
       sc.pp.neighbors(obj, n_neighbors=n_neighbors, n_pcs=15)
     
+    if obj.obs.shape[0] > MAX_CELLS_FOR_SPLITING:
+       split_cells = True
+    
+    if split_cells:
+       batch_size = obj.obs.shape[0] // number_of_batches
+       if batch_size > MAX_CELLS_BATCH_SIZE:
+          number_of_batches = obj.obs.shape[0] // 2000
+
+
     if not biogrid_flag:
       print(pkg_resources.resource_filename(__name__,r"Data/format_h_sapiens.csv"))
 

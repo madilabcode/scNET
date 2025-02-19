@@ -16,7 +16,7 @@ import os
 
 from sklearn.metrics import average_precision_score, roc_auc_score, adjusted_rand_score
 import scanpy as sc
-
+import urllib
 import gseapy as gp
 import warnings
 import pkg_resources
@@ -453,6 +453,42 @@ def test_KEGG_prediction(gene_embedding, ref):
     sns.set_theme(style='white',font_scale=1.5)
     plt.show()
     return df
+
+
+
+def find_downstream_tfs(net, signature):
+    """
+    Find downstream transcription factors (TFs) in a given network based on an input node signature.
+    Parameters
+    ----------
+    net : networkx.Graph
+        The network graph representing nodes and edges.
+    signature : list or set
+        A collection of nodes (e.g., genes) representing a specific signature.
+    Returns
+    -------
+    pandas.Series
+        A series of normalized propagation scores for transcription factors present
+        in the network and in the TF dictionary. Each entry corresponds to the TF
+        and its corresponding propagation score.
+    """
+   
+    url = "https://raw.githubusercontent.com/madilabcode/interFLOW/555a374b3057a99cd2d18760a4923499bf58d963/files/TFdictBT1.npy"
+    local_filename = "TFdictBT1.npy"
+    urllib.request.urlretrieve(url, local_filename)
+    tf_dict = np.load(local_filename, allow_pickle=True)
+    tf_dict = tf_dict.item()
+    tfs = list(map(lambda x: x[0] + x[1:].lower(),tf_dict.keys()))
+    W = nx.to_numpy_array(net)
+    v = np.array([1 if x in signature else 0 for x in net.nodes()])
+    res = ut.propagation(v,W)
+    res = pd.Series(res)
+    res.index = list(net.nodes())
+    res = res[res.index.isin(tfs)]
+    res = (res - res.min()) / (res.max() - res.min())
+    res.sort_values(ascending=False)
+    return res 
+
 
 def plot_umap_cells(cell_embedding):    
     obj = sc.AnnData(cell_embedding)

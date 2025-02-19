@@ -151,6 +151,7 @@ class DimEncoder(torch.nn.Module):
 
         return  embbded   
 
+
 class scNET(torch.nn.Module):
   def __init__(self,col_dim, row_dim,inter_row_dim, embd_row_dim, inter_col_dim,embd_col_dim,
                 lambda_rows = 1, lambda_cols = 1, num_layers=2, drop_p = 0.25):
