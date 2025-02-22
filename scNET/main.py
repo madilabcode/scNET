@@ -227,16 +227,11 @@ def train(data, loader, highly_variable_index,number_of_batches=5 ,
           if not cell_flag:
             knn_edge_index = list(loader)[0].T.to(device)
 
-          #print(f"row loss:{total_row_loss}, col loss:{total_col_loss}")
-
           auc, ap = test_recon(model, x.to(device), data, knn_edge_index)
-
-          #print('Epoch: {:03d}, AUC: {:.4f}, AP: {:.4f}'.format(epoch, auc, ap))
           
           if auc > best_auc:
             best_auc = auc
 
-          #save_model(r"./Models/BiEncdoer_best_" + model_name + ".pt", model)
           if cell_flag:
             st = torch.stack(row_emb_lst)
             row_embed = st.mean(dim=0)
@@ -328,7 +323,8 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
        obj = pre_processing(obj,n_neighbors)
 
     else:
-      obj.X = obj.raw.X
+      if not obj.raw is None:
+        obj.X = obj.raw.X
       sc.pp.log1p(obj)
       sc.pp.neighbors(obj, n_neighbors=n_neighbors, n_pcs=15)
     

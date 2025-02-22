@@ -264,96 +264,6 @@ def build_co_embeded_network(embedded_rows ,node_features,threshold=99):
     graph = nx.relabel_nodes(graph,map_nodes)
     return graph, mod 
 
-def p_cluster_enr(clusters,all_genes, GO_custom):
-    '''
-    Calculates the number of clusters that are significantly enriched for Gene Ontology (GO) terms.
-
-    Args:
-        clusters (array-like): An array or list of cluster labels for each gene.
-        all_genes (array-like): A list of all gene names corresponding to the genes clustered.
-        GO_custom (dict): A dictionary of GO terms and their associated genes. Keys are GO term names, and values are lists of genes associated with each GO term.
-
-    Returns:
-        int: The number of clusters with significant GO term enrichment (Adjusted P-value ≤ 0.05).
-
-    Method:
-        - Creates a DataFrame associating each gene with its cluster.
-        - Iterates over each unique cluster:
-            - If the cluster contains at least 5 genes, performs GO term enrichment analysis using Enrichr.
-            - Stores the minimum Adjusted P-value from the enrichment results.
-        - Determines which clusters have a minimum Adjusted P-value ≤ 0.05.
-        - Returns the count of such clusters.
-    '''
-    df =  pd.DataFrame({"genes" : all_genes, "cluster": clusters})
-    results = []
-    for cluster in df.cluster.drop_duplicates():
-        genes = df.loc[df.cluster == cluster,"genes"]
-        if len(genes) >= 5:
-            enr = gp.enrichr(gene_list=list(genes), # or "./tests/data/gene_list.txt",
-                        gene_sets=GO_custom,
-                        background=all_genes, #"hsapiens_gene_ensembl",
-                        outdir=None,
-                        verbose=True
-                    )
-            results.append(enr.results["Adjusted P-value"].min())
-        else:
-            results.append(1)
-        
-    results = np.array(results) <= 0.05
-    return results.sum()
-
-
-def run_p_enr_on_range_clusterts(embd,refs, min_n_clusters=60,max_n_clusters=130):
-    '''
-    Runs GO term enrichment analysis over a range of cluster counts and plots the percentage of clusters that are significantly enriched.
-
-    Args:
-        embd (np.ndarray or pd.DataFrame): The embedding matrix (e.g., gene embeddings) where rows correspond to genes.
-        refs (list of pd.DataFrame): A list of reference expression matrices (e.g., raw counts or other reference data) for comparison.
-        min_n_clusters (int, optional): The minimum number of clusters to evaluate. Defaults to 60.
-        max_n_clusters (int, optional): The maximum number of clusters to evaluate. Defaults to 130.
-
-    Returns:
-        tuple:
-            - results_embedd (list): A list containing the proportion of significantly enriched clusters for each cluster count in `embd`.
-            - results_refs (list of lists): A list where each element is a list containing the proportion of significantly enriched clusters for each cluster count in the corresponding reference in `refs`.
-
-    Method:
-        - Converts gene names to uppercase for consistency.
-        - Retrieves the GO Biological Process 2021 gene sets and filters them to include only genes present in the dataset.
-        - For a range of cluster counts (from `min_n_clusters` to `max_n_clusters` in steps of 10):
-            - Clusters the embeddings and references using KMeans clustering.
-            - Calculates the number of clusters with significant GO term enrichment using `p_cluster_enr`.
-            - Stores the proportion of significantly enriched clusters (number of significant clusters divided by total clusters).
-        - Plots a bar chart showing the percentage of significantly enriched clusters versus the number of clusters for both embeddings and references.
-
-    '''
-    results_embedd = []
-    exp_genes = (refs[0] > 0).sum(axis=1) > refs[0].shape[1] * 0.1
-
-    all_genes = refs[0].loc[exp_genes].index
-
-    all_genes = list(map(lambda x: x.upper(), all_genes))
-    results_refs = [[] for ref in refs]
-    GO_custom = gp.get_library("GO_Biological_Process_2021")
-    
-    GO_custom = {key: list(filter(lambda x: x in all_genes, value)) for key, value in GO_custom.items()}
-    GO_custom = {key: value for key, value in GO_custom.items() if len(value) > 0 }
-
-    for k in range(min_n_clusters,max_n_clusters,10):
-        means_embedd = KMeans(n_clusters=k, random_state=42).fit(embd[exp_genes.values])
-        results_embedd.append(p_cluster_enr(means_embedd.labels_, all_genes, GO_custom) / k)
-        for i in  range(len(refs)):
-            means_ref = KMeans(n_clusters=k, random_state=42).fit(refs[i].loc[exp_genes])
-            results_refs[i].append(p_cluster_enr(means_ref.labels_, all_genes, GO_custom) / k)
-    
-    k = [ i for i in range(min_n_clusters,max_n_clusters,10)]
-    df = pd.DataFrame({"n_clusters":k + k, "Percentage of GO significant enriched clusters": results_embedd+ list(results_refs[0])  , "type": ["scNET" for i in k] + ["Counts" for i in k]})#+ ["scLINE" for i in k]})
-    plt.figure(figsize=(12, 10),  dpi = 600)
-    sns.set_context("paper", font_scale=2.5)   
-    ax = sns.barplot(x="n_clusters", y="Percentage of GO significant enriched clusters", hue="type", data=df,palette=["darkturquoise", "lightsalmon"] )
-    plt.show()
-    return results_embedd, results_refs
 
 
 def crate_kegg_annot(all_genes):
@@ -379,9 +289,12 @@ def crate_kegg_annot(all_genes):
     
     return df
     
+
+
 def calculate_aupr(pred, vec, test_vec):
     pred_test = list(map(lambda x: pred[list(vec.index).index(x)], test_vec.index))
     return average_precision_score(test_vec.values, pred_test)
+
 
 def make_term_predication(graphs, term_vec):
     '''
@@ -414,6 +327,7 @@ def make_term_predication(graphs, term_vec):
         pred = ut.propagation(train_vec.values, w)
         result_aupr.append([calculate_aupr(pred , term_vec, test_vec)])
     return result_aupr
+
 
 def test_KEGG_prediction(gene_embedding, ref):
     '''
@@ -455,8 +369,7 @@ def test_KEGG_prediction(gene_embedding, ref):
     return df
 
 
-
-def find_downstream_tfs(net, signature):
+def find_downstream_tfs(net, signature, human_flag=False):
     """
     Find downstream transcription factors (TFs) in a given network based on an input node signature.
     Parameters
@@ -478,7 +391,8 @@ def find_downstream_tfs(net, signature):
     urllib.request.urlretrieve(url, local_filename)
     tf_dict = np.load(local_filename, allow_pickle=True)
     tf_dict = tf_dict.item()
-    tfs = list(map(lambda x: x[0] + x[1:].lower(),tf_dict.keys()))
+    if not human_flag:
+        tfs = list(map(lambda x: x[0] + x[1:].lower(),tf_dict.keys()))
     W = nx.to_numpy_array(net)
     v = np.array([1 if x in signature else 0 for x in net.nodes()])
     res = ut.propagation(v,W)
