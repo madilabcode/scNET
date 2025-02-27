@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='scnet',
-    version='0.1.0.7',
+    version='0.2.0',
     packages=find_packages(),
     include_package_data=True,  # Include data files
     package_data={
@@ -13,8 +13,8 @@ setup(
         'scNET': ['Data/*',"KNNs/*","Embedding/*","Models/*"]
     },
     install_requires=[
-        'torch',
-        'torch-geometric',
+        'torch==2.5.1',
+        'torch-geometric==2.6.1',
         'pandas>=2.2.1',
         'numpy==1.26.4',
         'networkx>=3.1',
