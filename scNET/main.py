@@ -218,7 +218,7 @@ def train(data, loader, highly_variable_index,number_of_batches=5 ,
               knn_edge_index = new_knn_edge_index
 
           if (epoch+1) % rduce_interavel == 0:
-              print(new_knn_edge_index.shape[1] / loader.dataset.edge_index.shape[0])
+              #print(new_knn_edge_index.shape[1] / loader.dataset.edge_index.shape[0])
               loader = mini_batch_knn(new_knn_edge_index, new_knn_edge_index.shape[1] // number_of_batches)
  
 

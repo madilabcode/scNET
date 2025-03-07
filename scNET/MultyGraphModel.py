@@ -111,7 +111,6 @@ class DimEncoder(torch.nn.Module):
                                     nn.LeakyReLU(inplace=True),
                                     (nn.Dropout(drop_p,inplace=False), 'x1-> x2')
                                   ])
-        print(scale_param) 
         if self.reducer:                
           self.atten_layer = TransformerConvReducrLayer(self.inter_dim, self.embd_dim,dropout= drop_p,add_self_loops = False,heads=1, scale_param=scale_param)
         else:
