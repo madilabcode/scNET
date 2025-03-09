@@ -239,6 +239,7 @@ def load_embeddings(proj_name):
     '''
     embeded_genes = load_obj(pkg_resources.resource_filename(__name__,r"./Embedding/row_embedding_" + proj_name))
     embeded_cells = load_obj(pkg_resources.resource_filename(__name__,r"./Embedding/col_embedding_" + proj_name))
-    node_features = pd.read_csv(pkg_resources.resource_filename(__name__,r"./Embedding/node_features_" + proj_name),index_col=0)
+    #node_features = pd.read_csv(pkg_resources.resource_filename(__name__,r"./Embedding/node_features_" + proj_name),index_col=0)
+    node_features = pd.read_pickle(pkg_resources.resource_filename(__name__,r"./Embedding/node_features_" + proj_name))
     out_features = load_obj(pkg_resources.resource_filename(__name__,r"./Embedding/out_features_" + proj_name))
     return embeded_genes, embeded_cells, node_features, out_features

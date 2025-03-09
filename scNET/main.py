@@ -22,7 +22,7 @@ import warnings
 INTER_DIM = 250
 EMBEDDING_DIM = 75
 NETWORK_CUTOFF = 0.5
-MAX_CELLS_BATCH_SIZE = 2000
+MAX_CELLS_BATCH_SIZE = 4000
 MAX_CELLS_FOR_SPLITING = 10000
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -334,7 +334,7 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
     if split_cells:
        batch_size = obj.obs.shape[0] // number_of_batches
        if batch_size > MAX_CELLS_BATCH_SIZE:
-          number_of_batches = obj.obs.shape[0] // 2000
+          number_of_batches = obj.obs.shape[0] // MAX_CELLS_BATCH_SIZE
 
 
     if not biogrid_flag:
@@ -364,7 +364,9 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
       loader = mini_batch_knn(knn_edge_index, knn_edge_index.shape[1] // number_of_batches)
   
     highly_variable_index = highly_variable_index[node_feature.index]
-    node_feature.to_csv(pkg_resources.resource_filename(__name__,r"Embedding/node_features_" + model_name))
+    #node_feature.to_csv(pkg_resources.resource_filename(__name__,r"Embedding/node_features_" + model_name))
+    node_feature.to_pickle(pkg_resources.resource_filename(__name__,r"Embedding/node_features_" + model_name))
+
     x = node_feature.values
 
     x = torch.tensor(x, dtype=torch.float32).cpu()

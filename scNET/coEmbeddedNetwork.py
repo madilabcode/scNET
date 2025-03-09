@@ -265,7 +265,6 @@ def build_co_embeded_network(embedded_rows ,node_features,threshold=99):
     return graph, mod 
 
 
-
 def crate_kegg_annot(all_genes):
     '''
       Creates a binary annotation matrix for KEGG pathways, indicating gene-pathway memberships for a given set of genes.
@@ -289,7 +288,6 @@ def crate_kegg_annot(all_genes):
     
     return df
     
-
 
 def calculate_aupr(pred, vec, test_vec):
     pred_test = list(map(lambda x: pred[list(vec.index).index(x)], test_vec.index))
