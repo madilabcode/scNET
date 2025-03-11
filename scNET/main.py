@@ -24,10 +24,12 @@ EMBEDDING_DIM = 75
 NETWORK_CUTOFF = 0.5
 MAX_CELLS_BATCH_SIZE = 4000
 MAX_CELLS_FOR_SPLITING = 10000
+EXPRESSION_CUTOFF = 0.0
+NUM_LAYERS = 3
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 warnings.filterwarnings('ignore')
-torch.manual_seed(101)
+torch.manual_seed(42)
 
 
 def build_network(obj, net, biogrid_flag = False, human_flag = False):
@@ -60,7 +62,7 @@ def build_network(obj, net, biogrid_flag = False, human_flag = False):
     genes =  obj.var[obj.var.index.isin(genes)].index
     node_feature = sc.get.obs_df(obj.raw.to_adata(),list(genes)).T
     node_feature["non_zero"] = node_feature.apply(lambda x: x.astype(bool).sum(), axis=1)
-    node_feature = node_feature.loc[node_feature.non_zero > node_feature.shape[1] *  0.0]
+    node_feature = node_feature.loc[node_feature.non_zero > node_feature.shape[1] * EXPRESSION_CUTOFF]
     node_feature.drop("non_zero",axis=1,inplace=True)
 
     net = net.loc[net.Source != net.Target]
@@ -149,10 +151,10 @@ def train(data, loader, highly_variable_index,number_of_batches=5 ,
     x_full = data.x.clone()
     if cell_flag:
       model = scNET(x_full.shape[0], x_full.shape[1]//number_of_batches,
-                                INTER_DIM, EMBEDDING_DIM, INTER_DIM, EMBEDDING_DIM, lambda_rows = 1, lambda_cols=1,num_layers=3).to(device)
+                                INTER_DIM, EMBEDDING_DIM, INTER_DIM, EMBEDDING_DIM, lambda_rows = 1, lambda_cols=1,num_layers=NUM_LAYERS).to(device)
     else:
       model = scNET(x_full.shape[0], x_full.shape[1], INTER_DIM, EMBEDDING_DIM, INTER_DIM, EMBEDDING_DIM, 
-                                lambda_rows = 1, lambda_cols=1).to(device)
+                                lambda_rows = 1, lambda_cols=1, num_layers=NUM_LAYERS).to(device)
       x = x_full.clone()
       x = ((x.T - (x.mean(axis=1)))/ (x.std(axis=1)+ 0.00001)).T
 
@@ -317,15 +319,14 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
     Returns:
       scNET: A trained scNET model.
     """
-    torch.manual_seed(42)
-
     if pre_processing_flag:
        obj = pre_processing(obj,n_neighbors)
 
     else:
-      if not obj.raw is None:
-        obj.X = obj.raw.X
+      if obj.raw is None:
+        obj.raw = obj.copy()
       sc.pp.log1p(obj)
+      obj.X = obj.raw.X
       sc.pp.neighbors(obj, n_neighbors=n_neighbors, n_pcs=15)
     
     if obj.obs.shape[0] > MAX_CELLS_FOR_SPLITING:
@@ -357,6 +358,10 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
       obj = obj[:,node_feature.index]
       sc.pp.highly_variable_genes(obj)
       highly_variable_index =  obj.var.highly_variable 
+      if highly_variable_index.sum() < 1200 or highly_variable_index.sum() > 5000:
+        obj.var["std"] = sc.get.obs_df(obj.raw.to_adata(),list(obj.var.index)).std()
+        highly_variable_index = obj.var["std"]  >= obj.var["std"].sort_values(ascending=False)[3500]
+
   
     else:
       obj = obj[:,node_feature.index]
