@@ -361,6 +361,8 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
       if highly_variable_index.sum() < 1200 or highly_variable_index.sum() > 5000:
         obj.var["std"] = sc.get.obs_df(obj.raw.to_adata(),list(obj.var.index)).std()
         highly_variable_index = obj.var["std"]  >= obj.var["std"].sort_values(ascending=False)[3500]
+      
+      print(f"Highly variable genes: {highly_variable_index.sum()}")
 
   
     else:
