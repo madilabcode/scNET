@@ -69,6 +69,7 @@ where:
 
 For a basic usage example of our framework, please refer to the following notebook:
 [scNET Example Notebook](https://colab.research.google.com/github/madilabcode/scNET/blob/main/scNET.ipynb)
+
 Foa a uasge example with batch integration using bbknn graph, plese refer to the following notebook:
 [scNET Multi Batch Example Notebook](https://github.com/madilabcode/scNET/blob/main/scNET_Integration.ipynb)
 
