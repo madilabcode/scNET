@@ -25,6 +25,7 @@ EMBEDDING_DIM = 75
 NETWORK_CUTOFF = 0.5
 MAX_CELLS_BATCH_SIZE = 4000
 MAX_CELLS_FOR_SPLITING = 10000
+DE_GENES_NUM = 3000
 EXPRESSION_CUTOFF = 0.0
 NUM_LAYERS = 3
 
@@ -260,7 +261,7 @@ def build_knn_graph(obj):
     graph = nx.from_numpy_array(np.matrix(graph))
     ppi_geo = convert.from_networkx(graph)
     edge_index = ppi_geo.edge_index
-    sc.pp.highly_variable_genes(obj)
+    sc.pp.highly_variable_genes(obj, n_top_genes=DE_GENES_NUM)
     return edge_index, obj.var.highly_variable
 
 def mini_batch_knn(edge_index, batch_size):
@@ -300,9 +301,11 @@ def nx_to_pyg_edge_index(G, mapping=None):
         edge_index[1, i] = mapping[dst]
     return edge_index, mapping
 
+
 def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
           human_flag=False,number_of_batches=5,split_cells = False, n_neighbors=25,
-          max_epoch=150, model_name="", save_model_flag = False):
+          max_epoch=150, model_name="", save_model_flag = False, bbknn_flag = False):
+  
     """
     Main function to load data, build networks, and run the scNET training pipeline.
     Args:
@@ -316,6 +319,7 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
       max_epoch (int, optional): Max number of epochs for model training.
       model_name (str, optional): Identifier for saving the model outputs.
       save_model_flag (bool, optional): If True, save the trained model.
+      bbknn_flag (bool, optional): If True, use BBKNN for building the adjacency graph.
     Returns:
       scNET: A trained scNET model.
     """
@@ -335,7 +339,8 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
         obj.raw = obj.copy()
       sc.pp.log1p(obj)
       obj.X = obj.raw.X
-      sc.pp.neighbors(obj, n_neighbors=n_neighbors, n_pcs=15)
+      if not bbknn_flag:
+        sc.pp.neighbors(obj, n_neighbors=n_neighbors, n_pcs=15)
     
     if obj.obs.shape[0] > MAX_CELLS_FOR_SPLITING:
        split_cells = True
@@ -364,9 +369,9 @@ def run_scNET(obj,pre_processing_flag = True ,biogrid_flag = False,
 
     if split_cells:
       obj = obj[:,node_feature.index]
-      sc.pp.highly_variable_genes(obj)
+      sc.pp.highly_variable_genes(obj,n_top_genes=DE_GENES_NUM)
       highly_variable_index =  obj.var.highly_variable 
-      if highly_variable_index.sum() < 1200 or highly_variable_index.sum() > 5000:
+      if highly_variable_index.sum() < 1000 or highly_variable_index.sum() > 5000:
         obj.var["std"] = sc.get.obs_df(obj.raw.to_adata(),list(obj.var.index)).std()
         highly_variable_index = obj.var["std"]  >= obj.var["std"].sort_values(ascending=False)[3500]
       

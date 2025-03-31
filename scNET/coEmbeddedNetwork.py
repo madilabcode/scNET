@@ -108,7 +108,7 @@ def calculate_marker_gene_aupr(adata, marker_genes=['Cd4','Cd14',"P2ry12","Ncr1"
       print(f"AUPR for {marker_gene} in identifying {cell_type[0]}: {aupr:.4f}")
 
 
-def pathway_enricment(adata, groupby="seurat_clusters", groups=None, gene_sets=None):
+def pathway_enricment(adata, groupby="seurat_clusters", groups=None, gene_sets=None, logfc_threshold=0, pval_threshold=0.05):
   '''
     Performs pathway enrichment analysis using KEGG pathways for differentially expressed genes in specific groups.
 
@@ -150,8 +150,8 @@ def pathway_enricment(adata, groupby="seurat_clusters", groups=None, gene_sets=N
   for group in groups:
       dedf = sc.get.rank_genes_groups_df(adata, group=group)
       dedf.names = dedf.names.str.upper()
-      genes = dedf[(dedf['logfoldchanges'] > 0) & (dedf["pvals_adj"] <  0.05)]
-      de_genes_per_group[group] = dedf[(dedf['logfoldchanges'] > 0) & (dedf["pvals_adj"] <  0.05)]
+      genes = dedf[(dedf['logfoldchanges'] > logfc_threshold) & (dedf["pvals_adj"] < pval_threshold)]
+      de_genes_per_group[group] = dedf[(dedf['logfoldchanges'] > logfc_threshold) & (dedf["pvals_adj"] <  pval_threshold)]
 
   enrichment_results = {}
   significant_pathways = {}

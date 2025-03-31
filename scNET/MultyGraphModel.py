@@ -232,7 +232,7 @@ class scNET(torch.nn.Module):
     col_loss = self.feature_critarion(x[highly_variable_index.values].T, out_features)
 
 
-    return self.lambda_rows * row_loss + self.lambda_cols * (col_loss + 2*reg), row_loss, col_loss
+    return self.lambda_rows * row_loss + self.lambda_cols * (col_loss + reg), row_loss, col_loss
   
   
   def forward(self, x, knn_edge_index, ppi_edge_index):
