@@ -79,5 +79,5 @@ For a simple usage example on gene inference using scENT gene embedding,please r
 
 
 For a simple example of predicting functional annotations using gene embeddings, please refer to the following notebook:
-[scNET Icos embedding](https://github.com/madilabcode/scNET/blob/main/scNET_Predicting_Annotation_From_Gene_Embedding.ipynb)
+[scNET functional annotations](https://github.com/madilabcode/scNET/blob/main/scNET_Predicting_Annotation_From_Gene_Embedding.ipynb)
 
