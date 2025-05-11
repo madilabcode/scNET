@@ -81,3 +81,7 @@ For a simple usage example on gene inference using scNET gene embedding,please r
 For a simple example of predicting functional annotations using gene embeddings, please refer to the following notebook:
 [scNET functional annotations](https://github.com/madilabcode/scNET/blob/main/scNET_Predicting_Annotation_From_Gene_Embedding.ipynb)
 
+
+For a example of how to use scNET to identify CD8+ T Cells subpopulation please refer to the following notebook:
+[scNET subpouplation clustring](https://github.com/madilabcode/scNET/blob/main/scNET_CD8_subsets.ipynb)
+
