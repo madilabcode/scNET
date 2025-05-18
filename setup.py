@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='scnet',
-    version='0.2.2.5',
+    version='0.2.2.6',
     packages=find_packages(),
     include_package_data=True,  # Include data files
     package_data={
