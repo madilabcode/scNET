@@ -1,3 +1,6 @@
+
+[![PyPI Downloads](https://static.pepy.tech/badge/scnet)](https://pepy.tech/projects/scnet)
+
 # **scNET: Learning Context-Specific Gene and Cell Embeddings by Integrating Single-Cell Gene Expression Data with Protein-Protein Interaction Information**
 
 ## **Overview**
