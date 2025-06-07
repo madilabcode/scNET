@@ -1,5 +1,6 @@
 
-[![PyPI Downloads](https://static.pepy.tech/badge/scnet)](https://pepy.tech/projects/scnet)
+
+[![Published in Nature Methods](https://img.shields.io/badge/published-Nature%20Methods-brightgreen)](https://www.nature.com/articles/s41592-025-02627-0) [![PyPI Downloads](https://static.pepy.tech/badge/scnet)](https://pepy.tech/projects/scnet)
 
 [![PyPI version](https://img.shields.io/pypi/v/scnet.svg)](https://pypi.org/project/scnet/)
 
