@@ -1,6 +1,7 @@
 
 
-[![Published in Nature Methods](https://img.shields.io/badge/published-Nature%20Methods-brightgreen)](https://www.nature.com/articles/s41592-025-02627-0) [![PyPI Downloads](https://static.pepy.tech/badge/scnet)](https://pepy.tech/projects/scnet) [![PyPI version](https://img.shields.io/pypi/v/scnet.svg)](https://pypi.org/project/scnet/)
+[![Published in Nature Methods](https://img.shields.io/badge/published-Nature%20Methods-brightgreen)](https://www.nature.com/articles/s41592-025-02627-0) [![Nature Methods Research Briefing](https://img.shields.io/badge/Nature%20Methods-Research%20Briefing-blue)](https://www.nature.com/articles/s41592-025-02628-z)
+[![PyPI Downloads](https://static.pepy.tech/badge/scnet)](https://pepy.tech/projects/scnet) [![PyPI version](https://img.shields.io/pypi/v/scnet.svg)](https://pypi.org/project/scnet/)
 
 
 # **scNET: Learning Context-Specific Gene and Cell Embeddings by Integrating Single-Cell Gene Expression Data with Protein-Protein Interaction Information**
