@@ -16,18 +16,48 @@ Requirements:
 import argparse
 import sys
 import os
-import scanpy as sc
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
+
+# Check for required dependencies
+missing_deps = []
+try:
+    import scanpy as sc
+except ImportError:
+    missing_deps.append("scanpy")
+
+try:
+    import pandas as pd
+except ImportError:
+    missing_deps.append("pandas")
+
+try:
+    import numpy as np
+except ImportError:
+    missing_deps.append("numpy")
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    missing_deps.append("matplotlib")
 
 # Import scNET
 try:
     import scNET
-    print("✓ scNET imported successfully")
+    if not missing_deps:
+        print("✓ scNET imported successfully")
 except ImportError:
-    print("❌ scNET not found. Install with: pip install scnet")
-    sys.exit(1)
+    missing_deps.append("scnet")
+
+if missing_deps:
+    print("❌ Missing required dependencies:")
+    for dep in missing_deps:
+        print(f"   - {dep}")
+    print("\nInstall dependencies with:")
+    print("   conda env create -f ./scNET/Data/scNET-env.yml")
+    print("   conda activate scNET")
+    print("Or:")
+    print("   pip install scnet scanpy pandas numpy matplotlib")
+    if "--help" not in sys.argv and "-h" not in sys.argv:
+        sys.exit(1)
 
 def main():
     parser = argparse.ArgumentParser(
