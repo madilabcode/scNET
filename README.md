@@ -18,9 +18,11 @@ Recent advances in single-cell RNA sequencing (scRNA-seq) techniques have provid
 To clone the repository, use the following command:
 `git clone https://github.com/madilabcode/scNET`
 
-We recommend using the provided Conda environment located at ./Data/scNET-env.yaml.
+We recommend using the provided Conda environment located at ./scNET/Data/scNET-env.yml.
+```bash
 cd scNET
-conda env create -f ./Data/scNET-env.yaml
+conda env create -f ./scNET/Data/scNET-env.yml
+```
 
 ## import scNET
 `import scNET`
@@ -90,4 +92,11 @@ For a simple example of predicting functional annotations using gene embeddings,
 
 For a example of how to use scNET to identify CD8+ T Cells subpopulation please refer to the following notebook:
 [scNET subpouplation clustring](https://github.com/madilabcode/scNET/blob/main/scNET_CD8_subsets.ipynb)
+
+
+For a comprehensive tutorial on pathway reconstruction using malaria-associated B cell datasets, please refer to the following notebook:
+[scNET Malaria B Cell Pathway Reconstruction](https://github.com/madilabcode/scNET/blob/main/scNET_Malaria_B_Cell_Pathway_Reconstruction.ipynb)
+
+For detailed information about the malaria-associated B cell dataset and pathway reconstruction methodology, see:
+[Malaria B Cell Dataset Documentation](https://github.com/madilabcode/scNET/blob/main/MALARIA_B_CELL_PATHWAY_RECONSTRUCTION.md)
 
