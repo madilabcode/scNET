@@ -1,0 +1,23 @@
+name: scNET
+channels:
+  - pytorch
+  - pyg
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pytorch==2.6.0
+  - pandas>=2.2.1
+  - numpy==1.26.4
+  - networkx>=3.1
+  - scanpy>=1.11.0
+  - scikit-learn>=1.4.1
+  - gseapy>=1.1.6
+  - matplotlib>=3.8.0
+  - seaborn
+  - igraph
+  - leidenalg
+  - tqdm
+  - scipy
+  - pip
+  - pip:
+      - torch-geometric==2.6.1
