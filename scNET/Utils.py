@@ -7,6 +7,7 @@ from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import average_precision_score
 import pickle 
 import pkg_resources
+import os
 
 alpha  = 0.9
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -243,3 +244,43 @@ def load_embeddings(proj_name):
     node_features = pd.read_pickle(pkg_resources.resource_filename(__name__,r"./Embedding/node_features_" + proj_name))
     out_features = load_obj(pkg_resources.resource_filename(__name__,r"./Embedding/out_features_" + proj_name))
     return embeded_genes, embeded_cells, node_features, out_features
+
+def delete_project(proj_name):
+    '''
+    Deletes all saved files for a given project from Embedding, KNNs, and Models directories.
+
+    Args:
+        proj_name (str): The name of the project to delete.
+
+    Returns:
+        list: A list of file paths that were successfully deleted.
+    '''
+    deleted_files = []
+    
+    embedding_files = [
+        r"./Embedding/row_embedding_" + proj_name + ".pkl", 
+        r"./Embedding/col_embedding_" + proj_name + ".pkl",  
+        r"./Embedding/out_features_" + proj_name + ".pkl",  
+        r"./Embedding/node_features_" + proj_name + ".pkl", 
+        r"./Embedding/node_features_" + proj_name            
+    ]
+    
+    knn_files = [
+        r"./KNNs/best_new_knn_graph_" + proj_name + ".pkl"
+    ]
+    
+    model_files = [
+        r"./Models/scNET_" + proj_name + ".pt"
+    ]
+    all_files = embedding_files + knn_files + model_files
+    
+    for file_path in all_files:
+        try:
+            full_path = pkg_resources.resource_filename(__name__, file_path)
+            if os.path.exists(full_path):
+                os.remove(full_path)
+                deleted_files.append(full_path)
+        except Exception as e:
+            print(f"Warning: Could not delete {file_path}: {e}")
+    
+    return deleted_files
