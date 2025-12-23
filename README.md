@@ -71,6 +71,11 @@ where:
 
 ### Construct a co-embedded network using the gene embeddings:
 `scNET.build_co_embeded_network(embedded_genes, node_features)`
+
+### Delete all files associated with a project (models, embeddings, and KNN graphs)
+`scNET.delete_project(project_name)`
+
+
 ## Tutorials
 
 For a basic usage example of our framework, please refer to the following notebook:
