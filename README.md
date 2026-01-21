@@ -96,3 +96,7 @@ For a simple example of predicting functional annotations using gene embeddings,
 For a example of how to use scNET to identify CD8+ T Cells subpopulation please refer to the following notebook:
 [scNET subpouplation clustring](https://github.com/madilabcode/scNET/blob/main/scNET_CD8_subsets.ipynb)
 
+
+## Contact
+
+For questions or feedback, please contact **ronsheinin@mail.tau.ac.il** or open a GitHub issue.
