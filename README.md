@@ -97,7 +97,7 @@ For a example of how to use scNET to identify CD8+ T Cells subpopulation please 
 [scNET subpouplation clustring](https://github.com/madilabcode/scNET/blob/main/scNET_CD8_subsets.ipynb)
 
 For an example of how to train scNET on a subsampled set of cells in order to scale to large datasets, please refer to the following notebook:  
-[scNET 80K_cell_example](https://github.com/madilabcode/scNET/blob/main/Train_on_subsample.ipynb)
+[scNET 84K cells traning](https://github.com/madilabcode/scNET/blob/main/Train_on_subsample.ipynb)
 *Please note: this notebook uses a beta version of scNET and may contain issues. Feel free to open a GitHub issue if you encounter any problems.*
 
 
